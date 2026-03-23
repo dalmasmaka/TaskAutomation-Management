@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="commands.txt" />
+  </Folder>
+  <Project Path="TA-API/TA-API.csproj" />
+  <Project Path="TA-Application/TA-Application.csproj" />
+  <Project Path="TA-Domain/TA-Domain.csproj" />
+  <Project Path="TA-Infrastructure/TA-Infrastructure.csproj" />
+</Solution>

@@ -1,0 +1,2 @@
+Add-Migration InitialCreate -Project TA-Infrastructure -StartupProject TA-API -OutputDir Persistence/Migrations
+Update-Database -StartupProject TA-API
