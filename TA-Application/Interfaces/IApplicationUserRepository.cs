@@ -7,10 +7,10 @@ namespace TA_Application.Interfaces
     {
         System.Threading.Tasks.Task AddAsync(ApplicationUser user);
         Task<ApplicationUser> GetByUsernameAsync(string username);
-        //Task<IEnumerable<ApplicationUser>> GetAllUsers();
-        //Task<ApplicationUser> GetUserById(string id);
-        //Task<ApplicationUser> UpdateUser(ApplicationUser user);
-        //Task<ApplicationUser> DeleteUser(string id);
-        //Task<int> GetTotalUsersCountAsync();
+        Task<IEnumerable<ApplicationUser>> GetAllUsers();
+        Task<ApplicationUser> GetUserById(string id);
+        Task<ApplicationUser> UpdateUser(ApplicationUser user);
+        System.Threading.Tasks.Task DeleteUser(string id);
+        Task<int> GetTotalUsersCountAsync();
     }
 }
