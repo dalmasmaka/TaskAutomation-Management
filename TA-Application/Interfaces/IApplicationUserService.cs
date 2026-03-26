@@ -3,7 +3,7 @@ using TA_Domain.Entities;
 
 namespace TA_Application.Interfaces
 {
-    public  interface IApplicationUserRepository
+    public  interface IApplicationUserService
     {
         System.Threading.Tasks.Task AddAsync(ApplicationUser user);
         Task<ApplicationUser> GetByUsernameAsync(string username);

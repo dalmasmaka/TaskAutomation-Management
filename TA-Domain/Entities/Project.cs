@@ -8,6 +8,9 @@ namespace TA_Domain.Entities
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int ProjectId { get; set; }
+        [ForeignKey("Company")]
+        public int CompanyId { get; set; }
+        public required Company Company { get; set; }
         [Required, MaxLength(200)]
         public required string Name { get; set; }
         [MaxLength(50)]
@@ -15,6 +18,7 @@ namespace TA_Domain.Entities
         [MaxLength(500)]
         public string? RepoURl { get; set; }
         public ICollection<Task>? Tasks { get; set; }
+        public ICollection<ProjectIntegration>? ProjectIntegrations { get; set; }
 
     }
 }

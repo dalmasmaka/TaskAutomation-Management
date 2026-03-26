@@ -4,7 +4,7 @@ using System.Text;
 
 namespace TA_Application.Interfaces
 {
-    public interface IPasswordHasherRepository
+    public interface IPasswordHasherService
     {
         string Hash(string password);
         bool Verify(string? password, string? hashedPassword);

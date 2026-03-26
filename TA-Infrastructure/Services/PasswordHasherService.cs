@@ -1,8 +1,8 @@
 ﻿using TA_Application.Interfaces;
 
-namespace TA_Infrastructure.Repositories
+namespace TA_Infrastructure.Services
 {
-    public class PasswordHasherRepository : IPasswordHasherRepository
+    public class PasswordHasherService : IPasswordHasherService
     {
         public string Hash(string password)
         {

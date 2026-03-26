@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -8,13 +7,13 @@ using TA_Application.Configurations;
 using TA_Application.Interfaces;
 using TA_Domain.Entities;
 
-namespace TA_Infrastructure.Repositories
+namespace TA_Infrastructure.Services
 {
-    public class JwtRepository: IJwtRepository
+    public class JwtService: IJwtService
     {
         private readonly JwtSettings _jwtSettings;
 
-        public JwtRepository(IOptions<JwtSettings> options)
+        public JwtService(IOptions<JwtSettings> options)
         {
             _jwtSettings = options.Value;
         }

@@ -13,11 +13,15 @@ namespace TA_Infrastructure.Persistence
         {
 
         }
+        public DbSet<Company> Companies { get; set; }
         public DbSet<Project> Projects { get; set; }
         public DbSet<TA_Domain.Entities.Task> Tasks { get; set; }
         public DbSet<CodeGeneration> CodeGenerations { get; set; }
         public DbSet<PullRequest> PullRequests { get; set; }
         public DbSet<Review> Reviews { get; set; }
+        public DbSet<CompanyIntegrationConfig> CompanyIntegrationConfigs { get; set; }
+        public DbSet<ProjectIntegration> ProjectIntegrations { get; set; }
+
 
     }
 }
