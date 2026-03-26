@@ -5,7 +5,7 @@ using TA_Infrastructure.Persistence;
 
 namespace TA_Infrastructure.Repositories
 {
-    public class ApplicationUserRepository : IApplicationUserRepository
+    public class ApplicationUserRepository : IApplicationUserService
     {
         private readonly ApplicationDbContext _context;
 

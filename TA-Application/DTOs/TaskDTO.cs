@@ -8,8 +8,8 @@
         public string? Description { get; set; }
         public required string Status { get; set; }
         public string? ImportStatus { get; set; }
-        public int ProjectId { get; set; }
-        public required ProjectDTO Project { get; set; }
+        //public int ProjectId { get; set; }
+        //public required ProjectDTO Project { get; set; }
         public int? AssignedTo { get; set; }
         public UserDTO? AssignedToUser { get; set; }
 

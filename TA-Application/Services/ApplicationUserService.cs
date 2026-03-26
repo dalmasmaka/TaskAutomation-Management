@@ -8,14 +8,14 @@ namespace TA_Application.Services
 {
     public class ApplicationUserService
     {
-        private readonly IApplicationUserRepository _repo;
-        private readonly IPasswordHasherRepository _hasher;
-        private readonly IJwtRepository _jwtservice;
+        private readonly IApplicationUserService _repo;
+        private readonly IPasswordHasherService _hasher;
+        private readonly IJwtService _jwtservice;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<ApplicationUserService> _logger;
 
-        public ApplicationUserService(IApplicationUserRepository repo, IPasswordHasherRepository hasher, IJwtRepository jwtservice,
-            UserManager<ApplicationUser> userManager, ILogger<ApplicationUserService>logger)
+        public ApplicationUserService(IApplicationUserService repo, IPasswordHasherService hasher, IJwtService jwtservice,
+            UserManager<ApplicationUser> userManager, ILogger<ApplicationUserService> logger)
         {
             _repo = repo;
             _hasher = hasher;
@@ -30,7 +30,7 @@ namespace TA_Application.Services
 
             var user = await _repo.GetByUsernameAsync(username);
             return user;
-          
+
         }
         public async Task<AuthResponseDTO> RegisterUserAsync(RegisterDTO userDTO)
         {
@@ -93,7 +93,7 @@ namespace TA_Application.Services
                 return new AuthResponseDTO
                 {
                     Success = true,
-                    Message = token 
+                    Message = token
                 };
             }
             catch (Exception ex)
@@ -109,11 +109,11 @@ namespace TA_Application.Services
         }
         public async Task<AuthResponseDTO> DeleteUserAsync(string id)
         {
-            if(string.IsNullOrWhiteSpace(id)) throw new ArgumentNullException(nameof(id));
+            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentNullException(nameof(id));
             try
             {
                 var existingUser = await _repo.GetUserById(id);
-                if(existingUser == null)
+                if (existingUser == null)
                 {
                     return new AuthResponseDTO { Success = false, Message = "User does not exist." };
                 }
@@ -128,7 +128,7 @@ namespace TA_Application.Services
         }
         public async Task<AuthResponseDTO> UpdateUserAsync(UserDTO userDTO)
         {
-            if(userDTO==null) throw new ArgumentNullException(nameof(userDTO));
+            if (userDTO == null) throw new ArgumentNullException(nameof(userDTO));
             try
             {
                 var existingUser = await _repo.GetUserById(userDTO.Id);
