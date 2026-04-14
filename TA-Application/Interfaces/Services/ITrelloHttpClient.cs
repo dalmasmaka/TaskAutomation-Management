@@ -1,6 +1,6 @@
 ﻿using TA_Application.DTOs;
 
-namespace TA_Application.Interfaces
+namespace TA_Application.Interfaces.Services
 {
     public interface ITrelloHttpClient
     {

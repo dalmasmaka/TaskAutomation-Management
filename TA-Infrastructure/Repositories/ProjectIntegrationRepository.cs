@@ -1,12 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TA_Application.DTOs;
-using TA_Application.Interfaces;
+using TA_Application.Interfaces.Repositories;
 using TA_Domain.Entities;
 using TA_Infrastructure.Persistence;
 
 namespace TA_Infrastructure.Repositories
 {
-    public class ProjectIntegrationRepository : IProjectIntegrationService
+    public class ProjectIntegrationRepository : IProjectIntegrationRepository
     {
         private readonly ApplicationDbContext _context;
         public ProjectIntegrationRepository(ApplicationDbContext context)
@@ -38,9 +38,7 @@ namespace TA_Infrastructure.Repositories
         {
             var projectIntegration = new ProjectIntegration
             {
-                Id = integration.Id,
                 ProjectId = integration.ProjectId,
-                Project = integration.Project,
                 Provider = integration.Provider,
                 AccessToken = integration.AccessToken,
                 RefreshToken = integration.RefreshToken,

@@ -1,15 +1,15 @@
 ﻿using Microsoft.Extensions.Logging;
 using TA_Application.DTOs;
-using TA_Application.Interfaces;
+using TA_Application.Interfaces.Repositories;
 using TA_Domain.Entities;
 
 namespace TA_Application.Services
 {
     public class CompanyIntegrationConfigService
     {
-        private readonly ICompanyIntegrationConfigService _repository;
+        private readonly ICompanyConfigRepository _repository;
         private readonly ILogger<CompanyIntegrationConfig> _logger;
-        public CompanyIntegrationConfigService(ICompanyIntegrationConfigService repository, ILogger<CompanyIntegrationConfig> logger)
+        public CompanyIntegrationConfigService(ICompanyConfigRepository repository, ILogger<CompanyIntegrationConfig> logger)
         {
             _repository = repository;
             _logger = logger;

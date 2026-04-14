@@ -1,17 +1,18 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using TA_Application.Interfaces;
+using TA_Application.Interfaces.Repositories;
+using TA_Application.Interfaces.Services;
 
 namespace TA_Application.Services
 {
     public class TaskProviderFactory
     {
-        private readonly IProjectIntegrationService _integrationRepo;
-        private readonly ICompanyIntegrationConfigService _configRepo;
+        private readonly IProjectIntegrationRepository _integrationRepo;
+        private readonly ICompanyConfigRepository _configRepo;
         private readonly IServiceProvider _serviceProvider;
 
         public TaskProviderFactory(
-            IProjectIntegrationService integrationRepo,
-            ICompanyIntegrationConfigService configRepo,
+            IProjectIntegrationRepository integrationRepo,
+            ICompanyConfigRepository configRepo,
             IServiceProvider serviceProvider)
         {
             _integrationRepo = integrationRepo;

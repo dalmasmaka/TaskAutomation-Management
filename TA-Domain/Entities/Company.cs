@@ -12,11 +12,13 @@ namespace TA_Domain.Entities
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public required string Name { get; set; }
-        [ForeignKey("Owner")]
-        public required string UserId { get; set; }
-        public required ApplicationUser User { get; set; }
+        public required string OwnerId { get; set; }
+        [ForeignKey("OwnerId")]
+        public ApplicationUser? User { get; set; }
+        // Employees of the company
+        public ICollection<ApplicationUser> Users { get; set; } = new List<ApplicationUser>();
+        public ICollection<WorkspaceInvitations>? WorkspaceInvitations { get; set; }
         public ICollection<Project>? Projects { get; set; }
-
 
     }
 }

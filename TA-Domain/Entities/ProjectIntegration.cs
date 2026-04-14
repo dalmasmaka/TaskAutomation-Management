@@ -10,7 +10,7 @@ namespace TA_Domain.Entities
         public int Id { get; set; }
         [ForeignKey("Project")]
         public int ProjectId { get; set; }
-        public required Project Project { get; set; }
+        public  Project? Project { get; set; }
 
         public string? Provider { get; set; }
 

@@ -10,7 +10,7 @@ namespace TA_Domain.Entities
         public int ProjectId { get; set; }
         [ForeignKey("Company")]
         public int CompanyId { get; set; }
-        public required Company Company { get; set; }
+        public  Company? Company { get; set; }
         [Required, MaxLength(200)]
         public required string Name { get; set; }
         [MaxLength(50)]
@@ -19,6 +19,7 @@ namespace TA_Domain.Entities
         public string? RepoURl { get; set; }
         public ICollection<Task>? Tasks { get; set; }
         public ICollection<ProjectIntegration>? ProjectIntegrations { get; set; }
+        public ICollection<UserProject>? UserProjects { get; set; }
 
     }
 }

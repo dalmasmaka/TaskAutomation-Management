@@ -11,11 +11,11 @@ namespace TA_Domain.Entities
 
         [ForeignKey("Company")]
         public int CompanyId { get; set; }
-        public required Company Company { get; set; }   
+        public Company? Company { get; set; }   
         public string? Provider { get; set; }
         public string? ClientId { get; set; }
         public string? ClientSecret { get; set; }
         public string? RedirectUri { get; set; }
-        public string? ExternalWorkspaceId { get; set; }
+
     }
 }
