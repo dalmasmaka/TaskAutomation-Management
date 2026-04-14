@@ -1,7 +1,6 @@
 ﻿using TA_Application.DTOs;
-using TA_Domain.Entities;
 
-namespace TA_Application.Interfaces
+namespace TA_Application.Interfaces.Repositories
 {
     public interface ITaskProviderService
     {

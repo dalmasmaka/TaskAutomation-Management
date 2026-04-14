@@ -1,13 +1,11 @@
-﻿using TA_Application.Interfaces;
-using TA_Domain.Entities;
+﻿using TA_Domain.Entities;
 using TA_Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using TA_Application.DTOs;
-
+using TA_Application.Interfaces.Repositories;
 
 namespace TA_Infrastructure.Repositories
 {
-    public class CompanyIntegrationConfigRepository : ICompanyIntegrationConfigService
+    public class CompanyIntegrationConfigRepository : ICompanyConfigRepository
     {
         private readonly ApplicationDbContext _context;
         public CompanyIntegrationConfigRepository(ApplicationDbContext context)

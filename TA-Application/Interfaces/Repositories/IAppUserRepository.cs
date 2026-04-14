@@ -1,12 +1,13 @@
-﻿using TA_Application.DTOs;
-using TA_Domain.Entities;
+﻿using TA_Domain.Entities;
 
-namespace TA_Application.Interfaces
+namespace TA_Application.Interfaces.Repositories
 {
-    public  interface IApplicationUserService
+    public  interface IAppUserRepository
     {
         System.Threading.Tasks.Task AddAsync(ApplicationUser user);
-        Task<ApplicationUser> GetByUsernameAsync(string username);
+        Task<string> GetPasswordByUserIdAsync(string userId);
+        System.Threading.Tasks.Task ChangePassword(string currentPassword, string newPassword);
+        Task<ApplicationUser> GetByEmailAsync(string email);
         Task<IEnumerable<ApplicationUser>> GetAllUsers();
         Task<ApplicationUser> GetUserById(string id);
         Task<ApplicationUser> UpdateUser(ApplicationUser user);

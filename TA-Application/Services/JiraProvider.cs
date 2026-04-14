@@ -1,5 +1,6 @@
 ﻿using TA_Application.DTOs;
-using TA_Application.Interfaces;
+using TA_Application.Interfaces.Repositories;
+using TA_Application.Interfaces.Services;
 using TA_Domain.Entities;
 
 namespace TA_Application.Services
@@ -7,10 +8,10 @@ namespace TA_Application.Services
     public class JiraProvider : ITaskProviderService
     {
         private readonly IJiraHttpClient _httpClient;
-        private readonly IProjectIntegrationService _projectRepo;
+        private readonly IProjectIntegrationRepository _projectRepo;
         private readonly CompanyIntegrationConfig _config;
 
-        public JiraProvider(IJiraHttpClient httpClient, IProjectIntegrationService projectRepo, CompanyIntegrationConfig config)
+        public JiraProvider(IJiraHttpClient httpClient, IProjectIntegrationRepository projectRepo, CompanyIntegrationConfig config)
         {
             _httpClient = httpClient;
             _projectRepo = projectRepo;

@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.JsonWebTokens;
+using System.Security.Claims;
 using TA_Application.DTOs;
+using TA_Application.Interfaces.Services;
 using TA_Application.Services;
 
 namespace TA_API.Controllers
@@ -9,18 +12,17 @@ namespace TA_API.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly ApplicationUserService _appService;
+        private readonly IAppUserService _appService;
         private readonly ILogger<AuthController> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public AuthController(ApplicationUserService appService, ILogger<AuthController> logger, IHttpContextAccessor httpContextAccessor)
+        public AuthController(IAppUserService appService, ILogger<AuthController> logger, IHttpContextAccessor httpContextAccessor)
         {
             _appService = appService;
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
         }
 
-        [HttpPost]
-        [Route("register")]
+        [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDTO userDTO)
         {
             var result = await _appService.RegisterUserAsync(userDTO);
@@ -29,20 +31,16 @@ namespace TA_API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO userDTO)
         {
-            var result = await _appService.LoginUserAsync(userDTO.UserName, userDTO.Password);
+            var result = await _appService.LoginUserAsync(userDTO.Email, userDTO.Password);
             return Ok(result);
 
         }
-        [HttpDelete("deleteUser")]
-        public async Task<IActionResult> DeleteUser()
+        [HttpDelete("deleteUser/{userId}")]
+        public async Task<IActionResult> DeleteUser(string userId)
         {
-            var userId = _httpContextAccessor.HttpContext.User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(userId))
-            {
-                return BadRequest(new AuthResponseDTO { Success = false, Message = "User ID not found in token." });
-            }
+          
             await _appService.DeleteUserAsync(userId);
-            return Ok(new AuthResponseDTO { Success = true, Message = "User deleted successfully." });
+            return Ok();
         }
         [HttpPut("updateUser")]
         public async Task<IActionResult> UpdateUser([FromBody] UserDTO userDTO)
@@ -50,10 +48,40 @@ namespace TA_API.Controllers
             //var userId = _httpContextAccessor.HttpContext.User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userDTO.Id))
             {
-                return BadRequest(new AuthResponseDTO { Success = false, Message = "User ID not found in token." });
+                return BadRequest(new ResponseDTO { Success = false, Message = "User ID not found in token." });
             }
             var result = await _appService.UpdateUserAsync(userDTO);
             return Ok(result);
+        }
+        [HttpGet("me")]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var user = await _appService.GetCurrentUser(userId);
+
+            return Ok(user);
+        }
+        [HttpPut("changePassword")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDTO changePasswordDTO)
+        {
+            var changePassword = await _appService.ChangePasswordAsync(changePasswordDTO);
+            return Ok(changePassword);
+        }
+        [HttpPut("changeUserRole")]
+        public async Task<IActionResult> ChangeUserRole([FromBody]ChangeUserRoleDTO userRole)
+        {
+            var changeRole = await _appService.ChangeUserRole(userRole.UserId, userRole.NewRole);
+            return Ok(changeRole);
+        }
+        [HttpGet("getRoles/{userId}")]
+        public async Task<IActionResult> GetRoles(string userId)
+        {
+            var roles = await _appService.GetAllRoles(userId);
+            return Ok(roles);
         }
     }
 }

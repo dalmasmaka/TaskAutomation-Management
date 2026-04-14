@@ -1,11 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using TA_Application.Interfaces;
+using TA_Application.Interfaces.Repositories;
 using TA_Domain.Entities;
 using TA_Infrastructure.Persistence;
 
 namespace TA_Infrastructure.Repositories
 {
-    public class ApplicationUserRepository : IApplicationUserService
+    public class ApplicationUserRepository : IAppUserRepository
     {
         private readonly ApplicationDbContext _context;
 
@@ -19,10 +19,43 @@ namespace TA_Infrastructure.Repositories
             await _context.SaveChangesAsync();
         }
 
+        public async System.Threading.Tasks.Task ChangePassword(string userId, string newPassword)
+        {
+            var user = await _context.Users
+          .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+                throw new Exception("User not found");
+
+            user.PasswordHash = newPassword;
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<string> GetPasswordByUserIdAsync(string userId)
+        {
+            var user = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.PasswordHash)
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+                throw new Exception("User not found");
+
+            return user;
+        }
+
         public async System.Threading.Tasks.Task DeleteUser(string id)
         {
-            await _context.Users.Where(u => u.Id == id).ExecuteDeleteAsync();
-            await _context.SaveChangesAsync();
+            var existing = await _context.Users
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (existing != null)
+            {
+                existing.isDeleted = true;
+
+                await _context.SaveChangesAsync();
+            }
         }
 
         public async Task<IEnumerable<ApplicationUser>> GetAllUsers()
@@ -30,10 +63,10 @@ namespace TA_Infrastructure.Repositories
             return await _context.Users.ToListAsync();
         }
 
-        public async Task<ApplicationUser> GetByUsernameAsync(string username)
+        public async Task<ApplicationUser> GetByEmailAsync(string email)
         {
             return await _context.Users
-            .FirstOrDefaultAsync(u => u.UserName == username);
+            .FirstOrDefaultAsync(u => u.Email == email);
         }
 
         public async Task<int> GetTotalUsersCountAsync()
@@ -54,5 +87,6 @@ namespace TA_Infrastructure.Repositories
             await _context.SaveChangesAsync();
             return user;
         }
+
     }
 }

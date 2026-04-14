@@ -1,4 +1,4 @@
-﻿using TA_Application.Interfaces;
+﻿using TA_Application.Interfaces.Services;
 
 namespace TA_Infrastructure.Services
 {

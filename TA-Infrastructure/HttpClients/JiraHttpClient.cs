@@ -3,8 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using TA_Application.Configurations;
 using TA_Application.DTOs;
-using TA_Application.Interfaces;
 using System.Net.Http.Headers;
+using TA_Application.Interfaces.Services;
 namespace TA_Infrastructure.HttpClients
 {
     public class JiraHttpClient : IJiraHttpClient

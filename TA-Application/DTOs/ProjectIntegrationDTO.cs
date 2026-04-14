@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text;
-using TA_Domain.Entities;
+﻿using TA_Domain.Entities;
 
 namespace TA_Application.DTOs
 {
@@ -11,7 +6,7 @@ namespace TA_Application.DTOs
     {
         public int Id { get; set; }
         public int ProjectId { get; set; }
-        public required Project Project { get; set; }
+        public Project? Project { get; set; }
 
         public string? Provider { get; set; }
 

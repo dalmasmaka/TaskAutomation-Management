@@ -1,11 +1,11 @@
 ﻿using TA_Application.DTOs;
-using TA_Application.Interfaces;
 
 namespace TA_Infrastructure.HttpClients
 {
     using System.Text.Json;
     using Microsoft.Extensions.Options;
     using TA_Application.Configurations;
+    using TA_Application.Interfaces.Services;
 
     public class TrelloHttpClient : ITrelloHttpClient
     {
