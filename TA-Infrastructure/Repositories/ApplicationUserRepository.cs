@@ -24,9 +24,7 @@ namespace TA_Infrastructure.Repositories
             var user = await _context.Users
           .FirstOrDefaultAsync(u => u.Id == userId);
 
-            if (user == null)
-                throw new Exception("User not found");
-
+            ArgumentNullException.ThrowIfNull(user);
             user.PasswordHash = newPassword;
 
             await _context.SaveChangesAsync();
@@ -39,8 +37,7 @@ namespace TA_Infrastructure.Repositories
                 .Select(u => u.PasswordHash)
                 .FirstOrDefaultAsync();
 
-            if (user == null)
-                throw new Exception("User not found");
+            ArgumentNullException.ThrowIfNull(user);
 
             return user;
         }
@@ -65,8 +62,14 @@ namespace TA_Infrastructure.Repositories
 
         public async Task<ApplicationUser> GetByEmailAsync(string email)
         {
-            return await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == email);
+            ArgumentNullException.ThrowIfNull(email);
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            ArgumentNullException.ThrowIfNull(user);
+
+            return user;
         }
 
         public async Task<int> GetTotalUsersCountAsync()
@@ -76,7 +79,9 @@ namespace TA_Infrastructure.Repositories
 
         public async Task<ApplicationUser> GetUserById(string id)
         {
-            return await _context.Users.FindAsync(id);
+            var users = await _context.Users.FindAsync(id);
+            ArgumentNullException.ThrowIfNull(users);
+            return users;
         }
 
         public async Task<ApplicationUser> UpdateUser(ApplicationUser user)
@@ -88,5 +93,20 @@ namespace TA_Infrastructure.Repositories
             return user;
         }
 
+        public async System.Threading.Tasks.Task DeleteUsersByCompanyIdAsync(int companyId)
+        {
+            var users = await _context.Users
+                .Where(u => u.CompanyId == companyId && !u.isDeleted)
+                .ToListAsync();
+
+            if (users.Any()) return;
+
+            foreach (var user in users)
+            {
+                user.isDeleted = true; 
+            }
+
+            await _context.SaveChangesAsync();
+        }
     }
 }

@@ -4,17 +4,10 @@ namespace TA_Application.Interfaces.Services
 {
     public interface IJiraHttpClient
     {
-        Task<string> GetAuthorizationUrlAsync(string clientId, string redirectUri);
-
-        Task<string> ExchangeCodeForTokenAsync(
-            string code,
-            int projectId,
-            string clientId,
-            string clientSecret,
-            string redirectUri);
-
+        Task<string> GetAuthorizationUrlAsync(string clientId, string redirectUri, int projectId, int companyId);
+        Task<string> ExchangeCodeForTokenAsync(string code, int projectId, string clientId, string clientSecret, string redirectUri);
         Task<string> GetCloudIdAsync(string accessToken);
-
-        Task<TaskDTO[]> GetTasksAsync(string accessToken, string cloudId);
+        Task<List<TaskDTO>> GetJiraTasksAsync(string accessToken, string cloudId, string projectKey, int localProjectId);
+        Task<List<Board>> GetBoardsAsync(string accessToken, string cloudId);
     }
 }

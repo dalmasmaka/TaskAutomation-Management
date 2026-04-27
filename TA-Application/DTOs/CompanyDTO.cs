@@ -10,5 +10,6 @@ namespace TA_Application.DTOs
         public required string OwnerId { get; set; }
         public string? OwnerName { get; set; }
         public string? UpdatedBy { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }

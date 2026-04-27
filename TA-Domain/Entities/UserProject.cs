@@ -12,7 +12,7 @@ namespace TA_Domain.Entities
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         [ForeignKey("UserId")]
-        public string UserId { get; set; }
+        public string? UserId { get; set; }
         public ApplicationUser? User { get; set; }
         [ForeignKey("ProjectId")]
         public int ProjectId { get; set; }

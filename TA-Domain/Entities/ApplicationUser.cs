@@ -12,5 +12,6 @@ namespace TA_Domain.Entities
         public bool isDeleted { get; set; } = false;
         public ICollection<Company>? OwnedCompanies { get; set; }
         public ICollection<UserProject>? UserProjects { get; set; }
+        public ICollection<TaskMember> TaskMembers { get; set; } = new List<TaskMember>();
     }
 }

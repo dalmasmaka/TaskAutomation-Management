@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Microsoft.Extensions.Logging;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
@@ -11,10 +9,12 @@ namespace TA_Application.Services
     {
         private readonly IProjectIntegrationRepository _integrationRepository;
         private readonly IProjectRepository _projectRepository;
-        public ProjectService(IProjectIntegrationRepository integrationRepository, IProjectRepository projectRepository)
+        private readonly ILogger<ProjectService> _logger;
+        public ProjectService(IProjectIntegrationRepository integrationRepository, IProjectRepository projectRepository, ILogger<ProjectService> logger)
         {
             _integrationRepository = integrationRepository;
             _projectRepository = projectRepository;
+            _logger = logger;
         }
 
         public async Task AssignUserToProjects(AssignUserProjectsDTO dto)
@@ -22,12 +22,19 @@ namespace TA_Application.Services
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto));
 
-            if (string.IsNullOrEmpty(dto.UserId) || dto.Projects == null || !dto.Projects.Any())
-                throw new ArgumentException("Invalid data");
+            try
+            {
+                if (string.IsNullOrEmpty(dto.UserId) || dto.Projects == null || !dto.Projects.Any())
+                    throw new ArgumentException("Invalid data");
 
-            await _projectRepository.AssignUserToProjects(dto.UserId, dto.Projects);
+                await _projectRepository.AssignUserToProjects(dto.UserId, dto.Projects);
+            }
+            catch (Exception ex) {
+                _logger.LogError(ex, "Error assigning user to projects!");
+                throw;
+            }
         }
-        public async Task AssignUsersToProject(AssignProjectUsersDTO dto)
+        public async Task<ResponseDTO> AssignUsersToProject(AssignProjectUsersDTO dto)
         {
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto));
@@ -35,19 +42,29 @@ namespace TA_Application.Services
             if (dto.ProjectId < 1 || dto.Users == null || !dto.Users.Any())
                 throw new ArgumentException("Invalid data");
 
-            await _projectRepository.AssignUsersToProject(dto.ProjectId, dto.Users);
+            try
+            {
+                var result = await _projectRepository.AssignUsersToProject(dto.ProjectId, dto.Users);
+
+                return result; 
+            }
+            catch (Exception ex) {
+                _logger.LogError(ex, "Error assigning users to project!");
+                throw;
+            }
         }
 
-        public async Task<List<ProjectDTO>> GetAllAsync(int companyId)
+        public async Task<List<ProjectDTO>> GetAllAsync(int companyId, string userId)
         {
             try
             {
-                var projects = await _projectRepository.GetAllAsync(companyId);
+                var projects = await _projectRepository.GetAllAsync(companyId, userId);
                 return projects;
             }
             catch (Exception ex)
             {
-                throw ex;
+                _logger.LogError(ex, "Error fetching projects!");
+                throw;
             }
         }
 
@@ -60,7 +77,8 @@ namespace TA_Application.Services
             }
             catch (Exception ex)
             {
-                throw ex;
+                _logger.LogError(ex, "Error fetching members!");
+                throw;
             }
         }
 
@@ -74,7 +92,8 @@ namespace TA_Application.Services
             }
             catch (Exception ex)
             {
-                throw ex;
+                _logger.LogError(ex, "Error fetching projects available to assign to user!");
+                throw;
             }
         }
 
@@ -87,12 +106,14 @@ namespace TA_Application.Services
             }
             catch (Exception ex)
             {
-                throw ex;
+                _logger.LogError(ex, "Error fetching users available to assign to projects!");
+                throw;
             }
         }
 
-        public async Task RemoveMemberAsync(string userId, int projectId)
+        public async System.Threading.Tasks.Task RemoveMemberAsync(string userId, int projectId)
         {
+            ArgumentNullException.ThrowIfNull(userId);
             try
             {
                 await _projectRepository.RemoveMemberAsync(userId, projectId);
@@ -100,41 +121,28 @@ namespace TA_Application.Services
             }
             catch (Exception ex)
             {
-                throw ex;
+                _logger.LogError(ex, "Error removing member!");
+                throw;
             }
         }
 
-        public async Task<ResponseDTO> SaveProjectIntegration(WholeProjectDTO project)
+        public async Task<ResponseDTO> SaveProjectAsync(string userId, int companyId, CreateProjectDTO project)
         {
-            if (project == null)
-                throw new ArgumentNullException(nameof(project));
+            ArgumentNullException.ThrowIfNull(project);
 
             try
             {
-                // 1. Map and Save the Project
-                var projectDTO = new ProjectDTO
+                var projectDTO = new CreateProjectDTO
                 {
                     Name = project.Name,
                     Platform = project.Platform,
                     RepoURl = project.RepoURl,
+                    CompanyId = companyId,
+                    CreatedTime = DateTime.Now,
+                    UserId = userId,
                 };
 
-                // Assuming AddAsync returns the created entity or we can get the new ID
                 var savedProject = await _projectRepository.SaveAsync(projectDTO);
-
-                // 2. Map and Save the Integration
-                var projectIntegrationDTO = new ProjectIntegrationDTO
-                {
-                    // Use the ID from the newly saved project if project.ProjectId is 0
-                    ProjectId = savedProject.ProjectId,
-                    AccessToken = project.AccessToken,
-                    Provider = project.Provider,
-                    RefreshToken = project.RefreshToken,
-                    ExpiresAt = project.ExpiresAt,
-                    ExternalId = project.ExternalId,
-                };
-
-                await _integrationRepository.SaveAsync(projectIntegrationDTO);
 
                 return new ResponseDTO
                 {
@@ -144,14 +152,28 @@ namespace TA_Application.Services
             }
             catch (Exception ex)
             {
-                // Log the error (Always log!)
-                // _logger.LogError(ex, "Error saving project integration");
+                 _logger.LogError(ex, "Error saving project integration");
 
                 return new ResponseDTO
                 {
                     Success = false,
                     Message = "An error occurred while saving the project."
                 };
+            }
+        }
+
+        public async Task<List<ProjectDTO>> GetUserProjectsAsync(int companyId, string userId)
+        {
+            try
+            {
+                if(userId == null) {  throw new ArgumentNullException(nameof(userId)); }
+                var projects = await _projectRepository.GetProjectsByUserIdAsync(companyId, userId);
+                return projects;
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching projects!");
+                throw;
             }
         }
     }

@@ -1,4 +1,5 @@
-﻿using TA_Domain.Entities;
+﻿using TA_Application.DTOs;
+using TA_Domain.Entities;
 
 namespace TA_Application.Interfaces.Repositories
 {
@@ -13,5 +14,6 @@ namespace TA_Application.Interfaces.Repositories
         Task<ApplicationUser> UpdateUser(ApplicationUser user);
         System.Threading.Tasks.Task DeleteUser(string id);
         Task<int> GetTotalUsersCountAsync();
+        System.Threading.Tasks.Task DeleteUsersByCompanyIdAsync(int companyId);
     }
 }

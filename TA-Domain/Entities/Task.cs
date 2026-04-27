@@ -14,15 +14,13 @@ namespace TA_Domain.Entities
         public required string Title { get; set; }
         public string? Description { get; set; }
         public required string Status { get; set; } // new, in progress, generated etc.
+        public string? Priority { get; set; }
         public string? ImportStatus { get; set;  }
         [ForeignKey("Project")]
         public int ProjectId { get; set; }
-        public required Project Project { get; set; }
-        [ForeignKey("AssignedUser")]
-        public int? AssignedTo {  get; set; }//nullable until assigned
-        public ApplicationUser? AssignedToUser { get; set; }
-
+        public Project? Project { get; set; }
         //nav props
         public ICollection<CodeGeneration>? CodeGenerations { get; set; }
+        public ICollection<TaskMember> TaskMembers { get; set; } = new List<TaskMember>();
     }
 }

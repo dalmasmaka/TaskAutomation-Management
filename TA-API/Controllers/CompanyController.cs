@@ -19,10 +19,9 @@ namespace TA_API.Controllers
         [Authorize(Roles = "Owner")]
         [HttpGet("company")]
         public async Task<IActionResult> GetCompanyByOwner() {
-            var companyId = int.Parse(User.FindFirstValue("companyId"));
-
-            //if (string.IsNullOrEmpty(companyId))
-            //    return Unauthorized();
+            var companyIdClaim = User.FindFirstValue("companyId");
+            if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
+            var companyId = int.Parse(companyIdClaim);
             var result = await _companyService.GetCompanyById(companyId);
             return Ok(result);
         }
@@ -33,10 +32,10 @@ namespace TA_API.Controllers
             return Ok(result);
 
         }
+        [Authorize(Roles = "Owner")]
         [HttpPut("saveCompanyConfig")]
         public async Task<IActionResult> SaveCompanyConfiguration([FromBody] CompanyConfigDTO companyDTO)
         {
-
             var result = await _companyService.SaveCompanyConfig(companyDTO);
             return Ok(result);
         }
@@ -50,25 +49,43 @@ namespace TA_API.Controllers
         [HttpGet("companyTeam")]
         public async Task<IActionResult> GetCompanyTeam()
         {
-            var companyId = int.Parse(User.FindFirstValue("companyId"));
-
-            //if (string.IsNullOrEmpty(companyId))
-            //    return Unauthorized();
+            var companyIdClaim = User.FindFirstValue("companyId");
+            if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
+            var companyId = int.Parse(companyIdClaim);
             var result = await _companyService.GetTeamOfCompany(companyId);
             return Ok(result);
         }
+        [Authorize(Roles = "Owner")]
         [HttpGet("codes")]
         public async Task<IActionResult> GetInvitationsCode() {
-            var companyId = int.Parse(User.FindFirstValue("companyId"));
+            var companyIdClaim = User.FindFirstValue("companyId");
+            if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
+            var companyId = int.Parse(companyIdClaim);
             var result = await _companyService.GetInvitations(companyId);
             return Ok(result);
         }
+        [Authorize(Roles = "Owner")]
         [HttpPost("generateCode")]
         public async Task<IActionResult> GenerateCode([FromBody] DateTime expiryDate) {
 
-            var companyId = int.Parse(User.FindFirstValue("companyId"));
+            var companyIdClaim = User.FindFirstValue("companyId");
+            if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
+            var companyId = int.Parse(companyIdClaim);
             var result = await _companyService.GenerateCodeAsync(companyId, expiryDate);
             return Ok(result);  
+        }
+        [Authorize(Roles = "Owner")]
+        [HttpDelete("deleteConfig/{id}")]
+        public async Task<IActionResult> Delete(int id) {
+            await _companyService.DeleteConfig(id);
+            return Ok();
+        }
+        [Authorize(Roles = "Owner")]
+        [HttpDelete("deleteCompany/{id}")]
+        public async Task<IActionResult> DeleteCompany(int id)
+        {
+            await _companyService.DeleteCompanyAsync(id);
+            return Ok();
         }
     }
 }

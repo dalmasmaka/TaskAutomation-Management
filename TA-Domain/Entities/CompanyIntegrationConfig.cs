@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TA_Domain.Entities
 {
-    public class CompanyIntegrationConfig
+    public class CompanyIntegrationConfig: AuditEntity
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

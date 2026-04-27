@@ -11,10 +11,12 @@ namespace TA_Application.Interfaces.Services
         Task<CompanyDTO> UpdateCompany(CompanyDTO companyDTO);
         Task<CompanyConfigDTO> SaveCompanyConfig(CompanyConfigDTO companyConfigDTO);
         Task<CompanyDTO> GetCompanyById(int id);
-        Task<CompanyConfigDTO> GetCompanyConfig(int companyId);
+        Task<List<CompanyConfigDTO>> GetCompanyConfig(int companyId);
         Task<List<UserDTO>>GetTeamOfCompany(int companyId);
         Task<List<InvitationsDTO>>GetInvitations(int companyId);
         string GenerateSecureCode(int length = 8);
         Task<InvitationsDTO> GenerateCodeAsync(int companyId, DateTime expiryDate);
+        Task<ResponseDTO> DeleteConfig(int id);
+        Task<ResponseDTO> DeleteCompanyAsync(int companyId);
     }
 }

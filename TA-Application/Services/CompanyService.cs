@@ -1,23 +1,21 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.Design;
+﻿using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
-using System.Text;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
-using TA_Domain.Entities;
 
 namespace TA_Application.Services
 {
     public class CompanyService : ICompanyService
     {
         private readonly ICompanyRepository _companyService;
-        public CompanyService(ICompanyRepository companyService)
+        private readonly IAppUserRepository _appUserRepository;
+        private readonly ILogger<CompanyService> _logger;
+        public CompanyService(ICompanyRepository companyService, IAppUserRepository appUserRepository, ILogger<CompanyService> logger)
         {
             _companyService = companyService;
+            _appUserRepository = appUserRepository;
+            _logger = logger;
 
         }
         public async Task<ResponseDTO> CheckInvitationCode(string invitationCode)
@@ -72,20 +70,11 @@ namespace TA_Application.Services
             {
                 await _companyService.SaveCompanyConfigAsync(companyConfigDTO);
                 return companyConfigDTO;
-                //return new ResponseDTO
-                //{
-                //    Success = true,
-                //    Message = "Configurations has been saved successfully"
-                //};
+                
             }
             catch (Exception ex)
             {
                 throw new ArgumentException(ex.Message, nameof(companyConfigDTO));
-                //return new ResponseDTO
-                //{
-                //    Success = false,
-                //    Message = ex.Message
-                //};
             }
         }
         public async Task<CompanyDTO> GetCompanyById(int id)
@@ -103,7 +92,7 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<CompanyConfigDTO> GetCompanyConfig(int companyId)
+        public async Task<List<CompanyConfigDTO>> GetCompanyConfig(int companyId)
         {
             if (companyId < 0)
                 throw new ArgumentException("Company Id is null", nameof(companyId));
@@ -138,24 +127,22 @@ namespace TA_Application.Services
             {
                 var result = await _companyService.GetInvitations(companyId);
 
-                var updatedList = result.Select(inv => new InvitationsDTO
+                return result.Select(inv => new InvitationsDTO
                 {
                     CompanyId = inv.CompanyId,
-                    InvitationCode = inv.InvitationCode,
+                    InvitationCode = inv.InvitationCode ?? string.Empty,
                     ExpirationDate = inv.ExpirationDate,
                     ExpirationStatus = inv.ExpirationDate > DateTime.UtcNow
                         ? "Active"
                         : "Expired"
                 }).ToList();
-
-                return updatedList;
             }
             catch (Exception ex)
             {
-                throw; // ❗ don't use "throw ex"
+                _logger.LogError(ex, "Error fetching company invitations");
+                return new List<InvitationsDTO>();
             }
         }
-
         public string GenerateSecureCode(int length = 8)
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -192,7 +179,66 @@ namespace TA_Application.Services
                 return updatedList;
             }
             catch (Exception ex) {
-                throw ex;
+                _logger.LogError(ex, "Error fetching company invitations");
+                throw;
+            }
+        }
+
+        public async Task<ResponseDTO> DeleteConfig(int id)
+        {
+            if (id == 0) throw new ArgumentNullException(nameof(id));
+            try
+            {
+                var existingUser = await _companyService.GetCompanyConfig(id);
+                if (existingUser == null)
+                {
+                    return new ResponseDTO { Success = false, Message = "Company config does not exist." };
+                }
+                await _companyService.DeleteConfigAsync(id);
+                return new ResponseDTO { Success = true, Message = "Configuration deleted successfully." };
+            }
+            catch (Exception ex)
+            {
+               _logger.LogError(ex, "Unexpected error deleting user {UserId}.", id);
+                return new ResponseDTO { Success = false, Message = ex.Message };
+            }
+        }
+
+        public async Task<ResponseDTO> DeleteCompanyAsync(int companyId)
+        {
+            if (companyId == 0) throw new ArgumentNullException(nameof(companyId));
+
+            try
+            {
+                var existingCom = await _companyService.GetCompanyById(companyId);
+
+                if (existingCom == null)
+                {
+                    return new ResponseDTO
+                    {
+                        Success = false,
+                        Message = "Company does not exist."
+                    };
+                }
+
+                await _appUserRepository.DeleteUsersByCompanyIdAsync(companyId);
+
+                await _companyService.DeleteCompanyAsync(companyId);
+
+                return new ResponseDTO
+                {
+                    Success = true,
+                    Message = "Company and related users deleted successfully."
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting company.");
+                return new ResponseDTO
+                {
+                    Success = false,
+                    Message = "An unexpected error occurred."
+                };
             }
         }
     }

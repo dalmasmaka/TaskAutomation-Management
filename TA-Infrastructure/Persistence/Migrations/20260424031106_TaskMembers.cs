@@ -1,0 +1,115 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace TA_Infrastructure.Persistence.Migrations
+{
+    /// <inheritdoc />
+    public partial class TaskMembers : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropForeignKey(
+                name: "FK_Tasks_AspNetUsers_AssignedTo",
+                table: "Tasks");
+
+            migrationBuilder.DropIndex(
+                name: "IX_Tasks_AssignedTo",
+                table: "Tasks");
+
+            migrationBuilder.DropColumn(
+                name: "AssignedTo",
+                table: "Tasks");
+
+            migrationBuilder.CreateTable(
+                name: "TaskMembers",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    TaskId = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedById = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    UpdatedById = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TaskMembers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TaskMembers_AspNetUsers_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TaskMembers_AspNetUsers_UpdatedById",
+                        column: x => x.UpdatedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TaskMembers_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TaskMembers_Tasks_TaskId",
+                        column: x => x.TaskId,
+                        principalTable: "Tasks",
+                        principalColumn: "TaskId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TaskMembers_CreatedById",
+                table: "TaskMembers",
+                column: "CreatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TaskMembers_TaskId",
+                table: "TaskMembers",
+                column: "TaskId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TaskMembers_UpdatedById",
+                table: "TaskMembers",
+                column: "UpdatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TaskMembers_UserId",
+                table: "TaskMembers",
+                column: "UserId");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "TaskMembers");
+
+            migrationBuilder.AddColumn<string>(
+                name: "AssignedTo",
+                table: "Tasks",
+                type: "nvarchar(450)",
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Tasks_AssignedTo",
+                table: "Tasks",
+                column: "AssignedTo");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Tasks_AspNetUsers_AssignedTo",
+                table: "Tasks",
+                column: "AssignedTo",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id");
+        }
+    }
+}

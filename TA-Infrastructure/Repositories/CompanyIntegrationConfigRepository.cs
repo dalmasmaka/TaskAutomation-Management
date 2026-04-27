@@ -15,7 +15,7 @@ namespace TA_Infrastructure.Repositories
         public async Task<CompanyIntegrationConfig?> GetByCompanyAndProviderAsync(int companyId, string provider)
         {
            return await _context.CompanyIntegrationConfigs
-                .Where(c => c.CompanyId == companyId && c.Provider.ToLower() == provider.ToLower())
+                .Where(c => c.CompanyId == companyId && c.Provider!.ToLower() == provider.ToLower())
                 .FirstOrDefaultAsync();
         }
     }

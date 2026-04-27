@@ -1,10 +1,11 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
+using System.Text;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
 using TA_Domain.Entities;
-
+using Microsoft.AspNetCore.WebUtilities;
 namespace TA_Application.Services
 {
     public class ApplicationUserService: IAppUserService
@@ -13,18 +14,20 @@ namespace TA_Application.Services
         private readonly ICompanyRepository _companyService;
         private readonly IPasswordHasherService _hasher;
         private readonly ICompanyService _appService;
-        private readonly IJwtService _jwtservice;
+        private readonly IEmailService _emailService;
+        private readonly IJwtService _jwtService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<ApplicationUserService> _logger;
         private readonly RoleManager<IdentityRole> _roleManager;
 
-        public ApplicationUserService(IAppUserRepository repo, IPasswordHasherService hasher, IJwtService jwtservice,
-            UserManager<ApplicationUser> userManager, ILogger<ApplicationUserService> logger, ICompanyRepository companyService, ICompanyService layerService, RoleManager<IdentityRole> roleManager)
+        public ApplicationUserService(IAppUserRepository repo, IPasswordHasherService hasher, IJwtService jwtService,
+            UserManager<ApplicationUser> userManager, ILogger<ApplicationUserService> logger, ICompanyRepository companyService, ICompanyService layerService, RoleManager<IdentityRole> roleManager, IEmailService emailService)
         {
             _repo = repo;
             _hasher = hasher;
-            _jwtservice = jwtservice;
+            _jwtService = jwtService;
             _userManager = userManager;
+            _emailService = emailService;
             _logger = logger;
             _companyService = companyService;
             _appService = layerService;
@@ -32,8 +35,7 @@ namespace TA_Application.Services
         }
         public async Task<ResponseDTO> CheckUserExistsAsync(string email)
         {
-            if (string.IsNullOrWhiteSpace(email))
-                throw new ArgumentException("email cannot be null or empty.");
+            ArgumentNullException.ThrowIfNull(email);
             try
             {
                 var result = await _repo.GetByEmailAsync(email);
@@ -46,13 +48,14 @@ namespace TA_Application.Services
             }
             catch(Exception ex)
             {
+                _logger.LogError(ex, "Error while checking user!");
                 return new ResponseDTO { Success = false, Message = ex.Message };
             }
             
         }
         public async Task<ResponseDTO> RegisterUserAsync(RegisterDTO userDTO)
         {
-            if (userDTO == null) throw new ArgumentNullException(nameof(userDTO));
+            ArgumentNullException.ThrowIfNull(userDTO);
 
             try
             {
@@ -75,13 +78,14 @@ namespace TA_Application.Services
                     {
                         return new ResponseDTO { Success = false, Message = checkInvitation.Message };
                     }
-                    //e shikon a ekziston kodi 
-                    //nese ekziston a eshte i skaduar 
-                    //nese nuk plotesohen kushtet nuk mund te krijohet useri
                     var companyId =  _companyService.GetCompanyByInvitationCode(userDTO.InvitationCode);
-                    if (companyId == null)
+                    if (companyId <= 0)
                     {
-                        return new ResponseDTO { Success = false, Message = "Invalid invitation code." };
+                        return new ResponseDTO
+                        {
+                            Success = false,
+                            Message = "Invalid invitation code."
+                        };
                     }
 
                     user.CompanyId = companyId;
@@ -97,7 +101,7 @@ namespace TA_Application.Services
                 }
                 if (userDTO.Role == "owner")
                 {
-                    var workspaceResult = await _companyService.AddWorkspace(userDTO.WorkspaceName, user.Id);
+                    var workspaceResult = await _companyService.AddWorkspace(userDTO.WorkspaceName!, user.Id);
 
                     user.CompanyId = workspaceResult.Id;
                     await _repo.UpdateUser(user);
@@ -114,14 +118,14 @@ namespace TA_Application.Services
         }
         public async Task<ResponseDTO> LoginUserAsync(string email, string password)
         {
-            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
-                throw new ArgumentException("Credentials must be provided.");
+            ArgumentNullException.ThrowIfNull(email);
+            ArgumentNullException.ThrowIfNull(password);
 
             try
             {
                 var user = await _repo.GetByEmailAsync(email);
 
-                // 2. Security Best Practice: Unified Error Message
+                // Security Best Practice: Unified Error Message
                 //  "Invalid credentials" to prevent username harvesting.
                 if (user == null || !_hasher.Verify(password, user.PasswordHash))
                 {
@@ -133,7 +137,7 @@ namespace TA_Application.Services
                 }
                 var userRoles = await _userManager.GetRolesAsync(user);
                 string userRole = userRoles.FirstOrDefault() ?? "User";
-                var token = _jwtservice.GenerateToken(user, userRole);
+                var token = _jwtService.GenerateToken(user, userRole);
 
                 return new ResponseDTO
                 {
@@ -154,7 +158,7 @@ namespace TA_Application.Services
         }
         public async Task<ResponseDTO> DeleteUserAsync(string id)
         {
-            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentNullException(nameof(id));
+            ArgumentNullException.ThrowIfNull(id);
             try
             {
                 var existingUser = await _repo.GetUserById(id);
@@ -173,16 +177,11 @@ namespace TA_Application.Services
         }
         public async Task<ApplicationUser> UpdateUserAsync(UserDTO userDTO)
         {
-            if (userDTO == null) throw new ArgumentNullException(nameof(userDTO));
+            ArgumentNullException.ThrowIfNull(userDTO);
 
             try
             {
-                var existingUser = await _repo.GetUserById(userDTO.Id);
-
-                if (existingUser == null)
-                {
-                    throw new ArgumentNullException(nameof(existingUser));
-                }
+                var existingUser = await _repo.GetUserById(userDTO.Id!)?? throw new KeyNotFoundException("User not found");
 
                 if (!string.IsNullOrWhiteSpace(userDTO.FullName))
                     existingUser.FullName = userDTO.FullName;
@@ -197,27 +196,19 @@ namespace TA_Application.Services
                     existingUser.PasswordHash = _hasher.Hash(userDTO.Password);
 
                 await _repo.UpdateUser(existingUser);
+
                 return existingUser;
-                //return new ResponseDTO { Success = true, Message = "User updated successfully." };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error updating user {UserId}.", userDTO.Id);
-                throw ex;
-                //return new ResponseDTO { Success = false, Message = "An unexpected error occurred." };
+                throw;
             }
         }
         public async Task<ResponseDTO> ChangePasswordAsync(ChangePasswordDTO changePasswordDTO)
         {
-            if (string.IsNullOrEmpty(changePasswordDTO.userId))
-                throw new ArgumentException("UserId is null", nameof(changePasswordDTO.userId));
-
-            if (string.IsNullOrEmpty(changePasswordDTO.oldPassword))
-                throw new ArgumentException("Old Password is null", nameof(changePasswordDTO.oldPassword));
-
-            if (string.IsNullOrEmpty(changePasswordDTO.newPassword))
-                throw new ArgumentException("New Password is null", nameof(changePasswordDTO.newPassword));
-
+            ArgumentNullException.ThrowIfNull(changePasswordDTO);
+           
             try
             {
                 var storedHash = await _repo.GetPasswordByUserIdAsync(changePasswordDTO.userId);
@@ -269,51 +260,72 @@ namespace TA_Application.Services
         }
         public async Task<UserDTO> GetCurrentUser(string userId)
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            ArgumentNullException.ThrowIfNull(userId);
 
-            if (user == null)
-                throw new Exception("User not found");
-
-            var role = (await _userManager.GetRolesAsync(user)).FirstOrDefault();
-
-            return new UserDTO
+            try
             {
-                Id = user.Id,
-                Email = user.Email,
-                FullName = user.FullName,
-                PhoneNumber = user.PhoneNumber,
-                Role = role
-            };
+                var user = await _userManager.FindByIdAsync(userId)
+               ?? throw new KeyNotFoundException("User not found");
+
+                var roles = await _userManager.GetRolesAsync(user);
+                var role = roles.FirstOrDefault();
+
+                return new UserDTO
+                {
+                    Id = user.Id,
+                    Email = user.Email ?? string.Empty,
+                    FullName = user.FullName ?? string.Empty,
+                    PhoneNumber = user.PhoneNumber ?? string.Empty,
+                    Role = role
+                };
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error fetching user!");
+                throw;
+            }
         }
 
         public async Task<ResponseDTO> ChangeUserRole(string userId, string roleId)
         {
-            if (string.IsNullOrEmpty(userId))
-                throw new ArgumentException("Invalid userId");
+            ArgumentNullException.ThrowIfNull(userId);
+            ArgumentNullException.ThrowIfNull(roleId);
 
             try
             {
-                var user = await _userManager.FindByIdAsync(userId);
-                if (user == null)
-                    throw new Exception("User not found");
+                var user = await _userManager.FindByIdAsync(userId)
+                    ?? throw new KeyNotFoundException("User not found");
 
-                // 🔹 Get role by ID
-                var role = await _roleManager.FindByIdAsync(roleId);
-                if (role == null)
-                    throw new Exception("Role not found");
+                var role = await _roleManager.FindByIdAsync(roleId)
+                    ?? throw new KeyNotFoundException("Role not found");
 
-                // 🔹 Remove existing roles
                 var currentRoles = await _userManager.GetRolesAsync(user);
+
                 if (currentRoles.Any())
                 {
-                    await _userManager.RemoveFromRolesAsync(user, currentRoles);
+                    var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
+
+                    if (!removeResult.Succeeded)
+                        return new ResponseDTO
+                        {
+                            Success = false,
+                            Message = "Failed to remove current roles"
+                        };
                 }
 
-                // 🔹 Add new role (by NAME internally)
+                if (string.IsNullOrEmpty(role.Name))
+                    throw new InvalidOperationException("Role name is invalid");
+
                 var result = await _userManager.AddToRoleAsync(user, role.Name);
 
                 if (!result.Succeeded)
-                    throw new Exception("Failed to assign role");
+                {
+                    return new ResponseDTO
+                    {
+                        Success = false,
+                        Message = "Failed to assign role"
+                    };
+                }
 
                 return new ResponseDTO
                 {
@@ -323,6 +335,8 @@ namespace TA_Application.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error while changing user role!");
+
                 return new ResponseDTO
                 {
                     Success = false,
@@ -330,34 +344,122 @@ namespace TA_Application.Services
                 };
             }
         }
-
         public async Task<List<RolesDTO>> GetAllRoles(string userId)
         {
-            if (string.IsNullOrEmpty(userId))
-                throw new ArgumentException("UserId is invalid");
+            ArgumentNullException.ThrowIfNull(userId);
 
-            // 1. Get user
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-                throw new Exception("User not found");
+            try
+            {
+                var user = await _userManager.FindByIdAsync(userId);
 
-            // 2. Get roles assigned to user
-            var userRoles = await _userManager.GetRolesAsync(user);
+                if (user == null)
+                    throw new KeyNotFoundException("User not found");
 
-            // 3. Get all roles in system
-            var allRoles = _roleManager.Roles.ToList();
+                var userRoles = await _userManager.GetRolesAsync(user);
 
-            // 4. Filter roles NOT assigned to user
-            var availableRoles = allRoles
-                .Where(role => !userRoles.Contains(role.Name))
-                .Select(role => new RolesDTO
+                var allRoles = _roleManager.Roles.ToList();
+
+                var availableRoles = allRoles
+                    .Where(role => role.Name != null && !userRoles.Contains(role.Name))
+                    .Select(role => new RolesDTO
+                    {
+                        RoleId = role.Id,
+                        RoleName = role.Name! 
+                    })
+                    .ToList();
+
+                return availableRoles;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching roles.");
+                throw;
+            }
+        }
+
+        public async Task<ResponseDTO> ForgotPasswordAsync(ForgotPasswordRequestDTO request)
+        {
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(request.Email);
+                if(user == null)
                 {
-                    RoleId = role.Id,
-                    RoleName = role.Name
-                })
-                .ToList();
+                    return new ResponseDTO
+                    {
+                        Success = false,
+                        Message = "A user with this email address does not exist."
+                    };
+                }
 
-            return availableRoles;
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+                var encodedToken = WebEncoders.Base64UrlEncode(
+                    Encoding.UTF8.GetBytes(token));
+
+                var resetLink =
+                    $"http://localhost:4200/reset-password?email={user.Email}&token={encodedToken}";
+
+                var html = $@"
+        <h2>Password Reset</h2>
+        <p>You requested to reset your password.</p>
+        <p>
+            <a href='{resetLink}'>
+                Click here to reset password
+            </a>
+        </p>
+        <p>This link will expire in 30 minutes.</p>
+    ";
+
+                await _emailService.SendEmailAsync(
+                    user.Email,
+                    "Reset Password",
+                    html
+                );
+                return new ResponseDTO
+                {
+                    Success = true,
+                    Message = "Password reset link has been sent. Check your email!"
+                };
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "Error in ForgotPasswordAsync for email: {Email}", request.Email);
+                return new ResponseDTO
+                {
+                    Success = false,
+                    Message = "An error occurred while processing your request."
+                };
+            }
+          
+        }
+
+        public async Task<ResponseDTO> ResetPasswordAsync(ResetPasswordRequestDTO request)
+        {
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(request.Email) ?? throw new KeyNotFoundException("User not found");
+
+                var decodedToken = Encoding.UTF8.GetString(
+                    WebEncoders.Base64UrlDecode(request.Token));
+
+                user.PasswordHash = _hasher.Hash(request.NewPassword);
+
+                await _repo.UpdateUser(user);
+                return new ResponseDTO
+                {
+                    Success = true,
+                    Message = "Password reset successful"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in ResetPasswordAsync for email: {Email}", request.Email);
+                return new ResponseDTO
+                {
+                    Success = false,
+                    Message = "An error occurred while processing your request."
+                };
+            }
         }
     }
 }
