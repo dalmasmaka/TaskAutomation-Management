@@ -1,68 +1,81 @@
 ﻿using TA_Application.DTOs;
-
+using Microsoft.Extensions.Options;
+using System.Net.Http.Json;
+using TA_Application.Configurations;
+using TA_Application.Interfaces.Services;
 namespace TA_Infrastructure.HttpClients
 {
-    using System.Text.Json;
-    using Microsoft.Extensions.Options;
-    using TA_Application.Configurations;
-    using TA_Application.Interfaces.Services;
-
     public class TrelloHttpClient : ITrelloHttpClient
     {
         private readonly HttpClient _httpClient;
         private readonly TaskProvidersSettings _settings;
 
-        public TrelloHttpClient(HttpClient httpClient, IOptions<TaskProvidersSettings> settings)
+        public TrelloHttpClient(HttpClient httpClient, IOptions<ProvidersSettings> settings)
         {
             _httpClient = httpClient;
-            _settings = settings.Value;
+
+            _settings = settings.Value.Trello
+                ?? throw new ArgumentNullException("Trello settings are missing");
         }
 
-        // 🔹 1. Authorization URL
-        public Task<string> GetAuthorizationUrlAsync(string clientId, string redirectUri)
+        public Task<string> GetAuthorizationUrlAsync(string clientId, string redirectUri, int projectId, int companyId)
         {
-            var url = $"{_settings.AuthBaseUrl}{_settings.AuthorizeEndpoint}" +
+            var frontendUrl = "http://localhost:4200/";
+            var returnUrl = $"{frontendUrl}/integration/callback?projectId={projectId}&companyId={companyId}";
+
+            var url = $"https://trello.com/1/authorize" +
                       $"?key={clientId}" +
                       $"&response_type=token" +
-                      $"&scope=read" +
+                      $"&scope=read,write" +
                       $"&expiration=never" +
-                      $"&return_url={redirectUri}";
+                      $"&return_url={Uri.EscapeDataString(returnUrl)}";
 
-            return Task.FromResult(url);
+            return System.Threading.Tasks.Task.FromResult(url);
         }
 
-        // 🔹 2. Token passthrough (comes from frontend)
-        public Task<string> ExchangeTokenAsync(string token)
+        public async Task<List<Board>> GetBoardsAsync(string key, string accessToken)
         {
-            return Task.FromResult(token);
+
+            var url = $"https://api.trello.com/1/members/me/boards" +
+                      $"?key={key}&token={accessToken}";
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Trello API error: {response.StatusCode} - {error}");
+            }
+
+            var boards = await response.Content.ReadFromJsonAsync<List<Board>>();
+
+            return boards ?? [];
         }
 
-        // 🔹 3. Get Tasks (cards)
-        public async Task<TaskDTO[]> GetTasksAsync(string accessToken, string boardId, string clientId)
+        public async Task<List<TaskDTO>> GetTrelloTasks(string accessToken, string boardId, string apiKey, int projectId)
         {
-            var url = $"{_settings.ApiBaseUrl}/boards/{boardId}/cards?key={clientId}&token={accessToken}";
+            var url = $"https://api.trello.com/1/boards/{boardId}/cards" +
+              $"?key={apiKey}&token={accessToken}";
 
             var response = await _httpClient.GetAsync(url);
-            response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
-            var cards = JsonSerializer.Deserialize<List<TrelloCard>>(json);
-
-            return cards!.Select(card => new TaskDTO
+            if (!response.IsSuccessStatusCode)
             {
-                ExternalId = card.id,
-                Title = card.name,
-                Description = card.desc,
-                Status = card.idList
-            }).ToArray();
-        }
-        // 🔹 Internal model (Infrastructure only)
-        private class TrelloCard
-        {
-            public string id { get; set; } = null!;
-            public string name { get; set; } = null!;
-            public string desc { get; set; } = null!;
-            public string idList { get; set; } = null!;
+                var error = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Trello API error: {response.StatusCode} - {error}");
+            }
+
+            var trelloCards = await response.Content.ReadFromJsonAsync<List<TrelloCardResponse>>();
+
+            return trelloCards!.Select(card => new TaskDTO
+            {
+                ExternalId = card.Id,
+                Title = card.Name,
+                Description = card.Desc,
+                ProjectId = projectId,
+                ImportStatus = card.List?.Name ?? "Unknown",
+                Status = card.List?.Name ?? "Unknown",
+            }).ToList();
+
         }
     }
 }

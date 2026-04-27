@@ -17,5 +17,7 @@ namespace TA_Application.Interfaces.Services
         Task<UserDTO> GetCurrentUser(string userId);
         Task<ResponseDTO> ChangeUserRole(string userId, string roleId);
         Task<List<RolesDTO>> GetAllRoles(string userId);
+        Task<ResponseDTO> ForgotPasswordAsync(ForgotPasswordRequestDTO request);
+        Task<ResponseDTO> ResetPasswordAsync(ResetPasswordRequestDTO request);
     }
 }

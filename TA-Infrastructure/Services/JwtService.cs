@@ -20,6 +20,8 @@ namespace TA_Infrastructure.Services
 
         public string GenerateToken(ApplicationUser user, string role)
         {
+            //ArgumentNullException.ThrowIfNullOrEmpty(nameof(user));
+            if(user == null) { throw new ArgumentNullException("user"); }
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -28,7 +30,7 @@ namespace TA_Infrastructure.Services
                 new Claim("sub", user.Id.ToString()), // Use string "sub"
                 new Claim("role", role),             // Use string "role"
                 new Claim(ClaimTypes.Role, role),
-                new Claim("companyId", user.CompanyId.ToString()),
+                new Claim("companyId", user.CompanyId.ToString()!),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             };
             var token = new JwtSecurityToken(

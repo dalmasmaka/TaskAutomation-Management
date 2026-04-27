@@ -2,6 +2,7 @@
 using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Text;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
@@ -19,7 +20,7 @@ namespace TA_Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<ProjectDTO> SaveAsync(ProjectDTO project)
+        public async Task<CreateProjectDTO> SaveAsync(CreateProjectDTO project)
         {
             var existing = await _context.Projects
                 .FirstOrDefaultAsync(pi => pi.ProjectId == project.ProjectId);
@@ -27,16 +28,15 @@ namespace TA_Infrastructure.Repositories
             if (existing != null)
             {
                 // Update existing record
-                existing.Name = project.Name;
-                existing.Platform = project.Platform;
+                existing.Name = project.Name!;
+                existing.Platform = project.Platform!;
                 existing.RepoURl = project.RepoURl;
                 existing.CompanyId = project.CompanyId;
                 existing.UpdatedAt = DateTime.Now;
+                existing.UpdatedById = project.UserId;
 
-                // No need to call .Update() if the entity was tracked via FirstOrDefaultAsync
                 await _context.SaveChangesAsync();
 
-                // Map back to DTO to return
                 project.ProjectId = existing.ProjectId;
                 return project;
             }
@@ -45,17 +45,17 @@ namespace TA_Infrastructure.Repositories
                 // Create new record
                 var newProject = new Project
                 {
-                    Name = project.Name,
-                    Platform = project.Platform,
+                    Name = project.Name!,
+                    Platform = project.Platform!,
                     RepoURl = project.RepoURl,
                     CompanyId = project.CompanyId,
-                    CreatedAt = DateTime.Now // Good practice to set this here
+                    CreatedById = project.UserId,
+                    CreatedAt = DateTime.Now 
                 };
 
                 await _context.Projects.AddAsync(newProject);
                 await _context.SaveChangesAsync();
 
-                // After SaveChangesAsync, newProject.ProjectId is populated by the DB
                 project.ProjectId = newProject.ProjectId;
                 return project;
             }
@@ -74,7 +74,7 @@ namespace TA_Infrastructure.Repositories
             }
         }
 
-        public async Task<List<ProjectDTO>> GetAllAsync(int companyId)
+        public async Task<List<ProjectDTO>> GetAllAsync(int companyId, string userId)
         {
             return await _context.Projects
                 .Where(p => !p.IsDeleted && p.CompanyId == companyId)
@@ -85,12 +85,18 @@ namespace TA_Infrastructure.Repositories
                     Name = p.Name,
                     Platform = p.Platform,
                     RepoURl = p.RepoURl,
+                    CompanyId = p.CompanyId,
                     CreatedAt = p.CreatedAt.ToString("dd MMMM yyyy"),
-                    CreatedBy = p.CreatedBy.FullName,
-                    // Navigate to the join table and count the records
-                    TotalUsers = p.UserProjects.Count(up => !up.IsDeleted),
-                    TotalTasks = p.Tasks.Count(t => !t.IsDeleted)
+                    CreatedBy =  p.CreatedBy!.FullName,
+                    TotalUsers = p.UserProjects!
+                .Count(up => !up.IsDeleted && !up.User!.isDeleted),
+
+                    TotalTasks = p.Tasks!.Count(t => !t.IsDeleted),
+                    IsAssigned = p.UserProjects!
+                .Any(up => up.UserId == userId && !up.IsDeleted),
+                    HasConfig = p.ProjectIntegrations!.Any(pi => pi.ProjectId == p.ProjectId)
                 })
+
                 .ToListAsync();
         }
 
@@ -98,7 +104,7 @@ namespace TA_Infrastructure.Repositories
         {
             return await _context.Projects
                 .Where(p => !p.IsDeleted && p.CompanyId == companyId)
-                .Where(p => !p.UserProjects.Any(up => up.UserId == userId))
+                .Where(p => !p.UserProjects!.Any(up => up.UserId == userId))
                 .Select(p => new ProjectDTO
                 {
                     ProjectId = p.ProjectId,
@@ -115,7 +121,7 @@ namespace TA_Infrastructure.Repositories
                 where u.CompanyId == companyId
                       && !u.isDeleted
                       && r.Name != "Owner"
-                      && !u.UserProjects.Any(up => up.ProjectId == projectId && !up.IsDeleted)
+                      && !u.UserProjects!.Any(up => up.ProjectId == projectId && !up.IsDeleted)
                 select new UserDTO
                 {
                     Id = u.Id,
@@ -146,25 +152,54 @@ namespace TA_Infrastructure.Repositories
 
             await _context.SaveChangesAsync();
         }
-        public async System.Threading.Tasks.Task AssignUsersToProject(int projectId, List<string> userIds)
+        public async Task<ResponseDTO> AssignUsersToProject(int projectId, List<string> userIds)
         {
-
-            foreach (var userId in userIds)
+            try
             {
-                var exists = await _context.UserProjects
-                    .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
-
-                if (!exists)
+                foreach (var userId in userIds)
                 {
-                    _context.UserProjects.Add(new UserProject
-                    {
-                        UserId = userId,
-                        ProjectId = projectId
-                    });
-                }
-            }
+                    var userProject = await _context.UserProjects
+                        .FirstOrDefaultAsync(up =>
+                            up.UserId == userId &&
+                            up.ProjectId == projectId);
 
-            await _context.SaveChangesAsync();
+                    if (userProject != null)
+                    {
+                        //  Restore if deleted
+                        if (userProject.IsDeleted)
+                        {
+                            userProject.IsDeleted = false;
+                        }
+
+                        //  If already active → do nothing
+                    }
+                    else
+                    {
+                        //  Create new
+                        _context.UserProjects.Add(new UserProject
+                        {
+                            UserId = userId,
+                            ProjectId = projectId,
+                        });
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return new ResponseDTO
+                {
+                    Success = true,
+                    Message = "Users assigned successfully"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResponseDTO
+                {
+                    Success = false,
+                    Message = ex.Message
+                };
+            }
         }
 
         public async Task<List<UserDTO>> GetMembersAsync(int projectId)
@@ -197,5 +232,19 @@ namespace TA_Infrastructure.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<List<ProjectDTO>> GetProjectsByUserIdAsync(int companyId, string userId)
+        {
+            return await _context.Projects
+               .Where(p => !p.IsDeleted && p.CompanyId == companyId)
+               .Where(p => p.UserProjects!.Any(up => up.UserId == userId))
+               .Select(p => new ProjectDTO
+               {
+                   ProjectId = p.ProjectId,
+                   Name = p.Name,
+               })
+               .ToListAsync();
+        }
+
     }
 }

@@ -45,6 +45,7 @@ namespace TA_Infrastructure.Persistence
                 .WithMany()
                 .HasForeignKey(c => c.UpdatedById)
                 .OnDelete(DeleteBehavior.Restrict);
+
             builder.Entity<UserProject>(entity =>
             {
                 // Define the Primary Key (if not using a composite key)
@@ -73,6 +74,29 @@ namespace TA_Infrastructure.Persistence
                     .OnDelete(DeleteBehavior.Restrict);
 
             });
+            builder.Entity<TaskMember>()
+        .HasOne(tm => tm.User)
+        .WithMany(u => u.TaskMembers)
+        .HasForeignKey(tm => tm.UserId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskMember>()
+                .HasOne(tm => tm.Task)
+                .WithMany(t => t.TaskMembers)
+                .HasForeignKey(tm => tm.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskMember>().HasOne(c => c.CreatedBy)
+              .WithMany() // Creator can have many entities or leave blank
+              .HasForeignKey(c => c.CreatedById)
+              .OnDelete(DeleteBehavior.Restrict);
+
+            // AuditEntity UpdatedBy relationship
+
+            builder.Entity<TaskMember>().HasOne(c => c.UpdatedBy)
+                .WithMany()
+                .HasForeignKey(c => c.UpdatedById)
+                .OnDelete(DeleteBehavior.Restrict);
         }
         public DbSet<Company> Companies { get; set; }
         public DbSet<Project> Projects { get; set; }
@@ -84,6 +108,7 @@ namespace TA_Infrastructure.Persistence
         public DbSet<CompanyIntegrationConfig> CompanyIntegrationConfigs { get; set; }
         public DbSet<ProjectIntegration> ProjectIntegrations { get; set; }
         public DbSet<UserProject> UserProjects { get; set; }
+        public DbSet<TaskMember> TaskMembers { get; set; }
 
 
     }

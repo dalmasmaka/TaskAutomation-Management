@@ -1,4 +1,5 @@
-﻿using TA_Domain.Entities;
+﻿using System.Security;
+using TA_Domain.Entities;
 
 namespace TA_Application.DTOs
 {
@@ -14,7 +15,21 @@ namespace TA_Application.DTOs
         public string? RefreshToken { get; set; }
 
         public string? ExternalId { get; set; }
-
+        public string? ExternalBoardId { get; set; }
         public DateTime? ExpiresAt { get; set; }
+    }
+    public class TrelloTokenRequest
+    {
+        public string Token { get; set; } = null!;
+        public int ProjectId { get; set; }
+        public int CompanyId { get; set; }
+    }
+    public class LinkBoardRequest
+    {
+        public required string Provider { get; set; }
+        public required int ProjectId { get; set; }
+        public required int CompanyId { get; set; }
+        public required string BoardId { get; set; }
+        public required string ProjectKey { get; set; }
     }
 }

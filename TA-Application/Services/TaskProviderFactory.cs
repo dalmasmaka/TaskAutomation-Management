@@ -22,7 +22,7 @@ namespace TA_Application.Services
 
         public async Task<ITaskProviderService> GetProvider(string provider, int companyId)
         {
-            var companyConfig = await _configRepo.GetByCompanyAndProviderAsync(companyId, provider);
+            var companyConfig = await _configRepo.GetByCompanyAndProviderAsync(companyId, provider) ?? throw new KeyNotFoundException("Config not found");
 
             return provider.ToLower() switch
             {

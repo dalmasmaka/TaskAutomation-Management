@@ -1,14 +1,5 @@
 ﻿namespace TA_Application.DTOs
 {
-    public class AuthDTO
-    {
-        public string? Id { get; set; }
-        public required string Name { get; set; }
-        public required string Lastname { get; set; }
-        public string? PhoneNumber { get; set; }
-        public string? UserName { get; set; }
-        public string? Email { get; set; }
-    }
     public class UserDTO
     {
         public string? Id { get; set; }
@@ -45,14 +36,23 @@
     }
     public class ChangeUserRoleDTO
     {
-        public string UserId { get; set; }
-        public string NewRole { get; set; }
+        public required string UserId { get; set; }
+        public required string NewRole { get; set; }
     }
     public class RolesDTO
     {
-        public string RoleId { get; set; }
-        public string RoleName { get; set; }
+        public required string RoleId { get; set; }
+        public required string RoleName { get; set; }
     }
-
+    public class ForgotPasswordRequestDTO
+    {
+        public string Email { get; set; }
+    }
+    public class ResetPasswordRequestDTO
+    {
+        public string Email { get; set; }
+        public string Token { get; set; }
+        public string NewPassword { get; set; }
+    }
 
 }

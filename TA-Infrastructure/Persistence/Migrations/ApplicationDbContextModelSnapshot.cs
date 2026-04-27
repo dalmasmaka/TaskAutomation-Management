@@ -278,7 +278,7 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("CodeGenerations", (string)null);
+                    b.ToTable("CodeGenerations");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.Company", b =>
@@ -320,7 +320,7 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Companies", (string)null);
+                    b.ToTable("Companies");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.CompanyIntegrationConfig", b =>
@@ -340,8 +340,14 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.Property<int>("CompanyId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ExternalWorkspaceId")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Provider")
                         .HasColumnType("nvarchar(max)");
@@ -349,11 +355,21 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.Property<string>("RedirectUri")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedById")
+                        .HasColumnType("nvarchar(450)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
 
-                    b.ToTable("CompanyIntegrationConfigs", (string)null);
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("CompanyIntegrationConfigs");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.Project", b =>
@@ -404,7 +420,7 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Projects", (string)null);
+                    b.ToTable("Projects");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.ProjectIntegration", b =>
@@ -456,7 +472,7 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("ProjectIntegrations", (string)null);
+                    b.ToTable("ProjectIntegrations");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.PullRequest", b =>
@@ -503,7 +519,7 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("PullRequests", (string)null);
+                    b.ToTable("PullRequests");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.Review", b =>
@@ -547,7 +563,7 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Reviews", (string)null);
+                    b.ToTable("Reviews");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.Task", b =>
@@ -557,12 +573,6 @@ namespace TA_Infrastructure.Persistence.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TaskId"));
-
-                    b.Property<int?>("AssignedTo")
-                        .HasColumnType("int");
-
-                    b.Property<string>("AssignedToUserId")
-                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -584,7 +594,10 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<int>("ProjectId")
+                    b.Property<string>("Priority")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ProjectId")
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
@@ -604,15 +617,56 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasKey("TaskId");
 
-                    b.HasIndex("AssignedToUserId");
-
                     b.HasIndex("CreatedById");
 
                     b.HasIndex("ProjectId");
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Tasks", (string)null);
+                    b.ToTable("Tasks");
+                });
+
+            modelBuilder.Entity("TA_Domain.Entities.TaskMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("TaskId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TaskMembers");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.UserProject", b =>
@@ -658,7 +712,7 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserProjects", (string)null);
+                    b.ToTable("UserProjects");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.WorkspaceInvitations", b =>
@@ -705,7 +759,7 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("WorkspaceInvitations", (string)null);
+                    b.ToTable("WorkspaceInvitations");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -825,7 +879,19 @@ namespace TA_Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById");
+
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById");
+
                     b.Navigation("Company");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("UpdatedBy");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.Project", b =>
@@ -922,31 +988,56 @@ namespace TA_Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("TA_Domain.Entities.Task", b =>
                 {
-                    b.HasOne("TA_Domain.Entities.ApplicationUser", "AssignedToUser")
-                        .WithMany()
-                        .HasForeignKey("AssignedToUserId");
-
                     b.HasOne("TA_Domain.Entities.ApplicationUser", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedById");
 
                     b.HasOne("TA_Domain.Entities.Project", "Project")
                         .WithMany("Tasks")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("ProjectId");
 
                     b.HasOne("TA_Domain.Entities.ApplicationUser", "UpdatedBy")
                         .WithMany()
                         .HasForeignKey("UpdatedById");
-
-                    b.Navigation("AssignedToUser");
 
                     b.Navigation("CreatedBy");
 
                     b.Navigation("Project");
 
                     b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("TA_Domain.Entities.TaskMember", b =>
+                {
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TA_Domain.Entities.Task", "Task")
+                        .WithMany("TaskMembers")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "User")
+                        .WithMany("TaskMembers")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Task");
+
+                    b.Navigation("UpdatedBy");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.UserProject", b =>
@@ -1009,6 +1100,8 @@ namespace TA_Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("OwnedCompanies");
 
+                    b.Navigation("TaskMembers");
+
                     b.Navigation("UserProjects");
                 });
 
@@ -1043,6 +1136,8 @@ namespace TA_Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TA_Domain.Entities.Task", b =>
                 {
                     b.Navigation("CodeGenerations");
+
+                    b.Navigation("TaskMembers");
                 });
 #pragma warning restore 612, 618
         }

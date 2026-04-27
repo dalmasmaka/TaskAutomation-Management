@@ -4,6 +4,11 @@ using System.Text;
 
 namespace TA_Application.Configurations
 {
+    public class ProvidersSettings
+    {
+        public TaskProvidersSettings? Jira { get; set; }
+        public TaskProvidersSettings? Trello { get; set; }
+    }
     public class TaskProvidersSettings
     {
         public string AuthBaseUrl { get; set; } = null!;

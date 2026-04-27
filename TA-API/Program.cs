@@ -37,6 +37,11 @@ builder.Services.AddCors(options =>
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
+var jwtSecret = builder.Configuration["Jwt:Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    throw new InvalidOperationException("Configuration value 'Jwt:Secret' is required and cannot be null or empty.");
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -53,7 +58,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"])),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
 
         //RoleClaimType = "role",
         NameClaimType = "sub"
@@ -78,8 +83,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
-
-builder.Services.Configure<TaskProvidersSettings>(builder.Configuration.GetSection("Providers:Jira"));
+//builder.Services.Configure<ProvidersSettings>(builder.Configuration.GetSection("Providers"));
+builder.Services.Configure<ProvidersSettings>(builder.Configuration.GetSection("Providers"));
+//builder.Services.Configure<TaskProvidersSettings>("Jira", builder.Configuration.GetSection("Providers:Jira"));
+//builder.Services.Configure<TaskProvidersSettings>("Trello", builder.Configuration.GetSection("Providers:Trello"));
 //builder.Services.Configure<JiraSettings>(
 //    builder.Configuration.GetSection("Providers:Trello"));
 // 1. Register the HttpClients (using AddHttpClient is best for Jira/Trello)
@@ -99,8 +106,14 @@ builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 
+builder.Services.AddScoped<ITasksService, TasksService>(); 
+builder.Services.AddScoped<ITasksRepository, TasksRepository>();
+
 builder.Services.AddScoped<IPasswordHasherService, PasswordHasherService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddOptions();
 
@@ -118,7 +131,10 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Enter your JWT token. Example: 12345abcde"
     });
 });
-
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+{
+    options.TokenLifespan = TimeSpan.FromMinutes(30);
+});
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())

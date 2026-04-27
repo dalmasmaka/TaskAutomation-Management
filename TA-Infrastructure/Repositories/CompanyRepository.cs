@@ -64,7 +64,7 @@ namespace TA_Infrastructure.Repositories
             try
             {
                 var companyId = _context.Companies
-                    .Where(c => c.WorkspaceInvitations.Any(i => i.InvitationCode == invitationCode))
+                    .Where(c => c.WorkspaceInvitations!.Any(i => i.InvitationCode == invitationCode))
                     .Select(c => c.Id)
                     .FirstOrDefault();
 
@@ -112,16 +112,10 @@ namespace TA_Infrastructure.Repositories
 
             await _context.SaveChangesAsync();
         }
-        public async System.Threading.Tasks.Task SaveCompanyConfigAsync(CompanyConfigDTO dto)
+        public async Task<CompanyConfigDTO> SaveCompanyConfigAsync(CompanyConfigDTO dto)
         {
-            var companyExists = await _context.Companies
-                .AnyAsync(c => c.Id == dto.CompanyId);
-
-            if (!companyExists)
-                throw new ArgumentException("Company does not exist", nameof(dto.CompanyId));
-
             var existingConfig = await _context.CompanyIntegrationConfigs
-                .FirstOrDefaultAsync(c => c.CompanyId == dto.CompanyId);
+                .FirstOrDefaultAsync(c => c.CompanyId == dto.CompanyId && c.Id == dto.Id);
 
             if (existingConfig == null)
             {
@@ -132,10 +126,11 @@ namespace TA_Infrastructure.Repositories
                     ClientSecret = dto.ClientSecret,
                     Provider = dto.Provider,
                     RedirectUri = dto.RedirectUri,
-                    ExternalWorkspaceId = dto.ExternalWorkspaceId,
                 };
 
                 await _context.CompanyIntegrationConfigs.AddAsync(newConfig);
+                await _context.SaveChangesAsync();
+                dto.Id = newConfig.Id;
             }
             else
             {
@@ -143,46 +138,42 @@ namespace TA_Infrastructure.Repositories
                 existingConfig.ClientSecret = dto.ClientSecret;
                 existingConfig.Provider = dto.Provider;
                 existingConfig.RedirectUri = dto.RedirectUri;
-                existingConfig.ExternalWorkspaceId = dto.ExternalWorkspaceId;
+                dto.Id = existingConfig.Id;
+                await _context.SaveChangesAsync();
             }
+           
+            return dto;
 
-            await _context.SaveChangesAsync();
         }
-
         public async Task<CompanyDTO> GetCompanyById(int id)
         {
-            var company = await _context.Companies
-         .Include(c => c.User)
-         .FirstOrDefaultAsync(c => c.Id == id);
+            var dto = await _context.Companies
+                .Where(c => c.Id == id)
+                .Select(c => new CompanyDTO
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    OwnerId = c.OwnerId,
+                    OwnerName = c.User != null ? c.User.FullName : null
+                })
+                .FirstOrDefaultAsync();
 
-            if (company == null)
-                return null;
-            var dto = new CompanyDTO
-            {
-                Id = company.Id,
-                Name = company.Name,
-                OwnerId = company.OwnerId,
-                OwnerName = company.User?.FullName,
-            };
+            ArgumentNullException.ThrowIfNull(dto);
+
             return dto;
         }
-
-        public async Task<CompanyConfigDTO> GetCompanyConfig(int companyId)
+        public async Task<List<CompanyConfigDTO>> GetCompanyConfig(int companyId)
         {
-            var companyConfig = await _context.CompanyIntegrationConfigs.Where(c => c.CompanyId == companyId).FirstOrDefaultAsync();
-            if (companyConfig == null)
-                return null;
-            var dto = new CompanyConfigDTO
-            {
-                CompanyId = companyConfig.CompanyId,
-                Id = companyConfig.Id,
-                ClientId = companyConfig.ClientId,
-                ClientSecret = companyConfig.ClientSecret,
-                Provider = companyConfig.Provider,
-                RedirectUri = companyConfig.RedirectUri,
-                ExternalWorkspaceId = companyConfig.ExternalWorkspaceId,
-            };
-            return dto;
+            return await _context.CompanyIntegrationConfigs.Where(c => c.CompanyId == companyId && !c.IsDeleted)
+                .Select(p => new CompanyConfigDTO
+                {
+                    CompanyId = p.CompanyId,
+                    Id = p.Id,
+                    ClientId = p.ClientId,
+                    ClientSecret = p.ClientSecret,
+                    Provider = p.Provider,
+                    RedirectUri = p.RedirectUri,
+                }).ToListAsync();
         }
 
         public async Task<List<UserDTO>> GetTeamOfCompany(int companyId)
@@ -222,21 +213,47 @@ namespace TA_Infrastructure.Repositories
 
         public async Task<InvitationsDTO> GenerateCodeAsync(InvitationsDTO dto)
         {
-            var invitaton = new WorkspaceInvitations
-            {
-                CompanyId = dto.CompanyId,
-                InvitationCode = dto.InvitationCode,
-                ExpirationDate = dto.ExpirationDate,
+            if (dto == null)
+                throw new ArgumentNullException(nameof(dto));
 
-            };
-            _context.WorkspaceInvitations.Add(invitaton);
-            await _context.SaveChangesAsync();
-            return dto = new InvitationsDTO
+            var invitation = new WorkspaceInvitations
             {
                 CompanyId = dto.CompanyId,
                 InvitationCode = dto.InvitationCode,
-                ExpirationDate = dto.ExpirationDate,
+                ExpirationDate = dto.ExpirationDate
             };
+
+            _context.WorkspaceInvitations.Add(invitation);
+            await _context.SaveChangesAsync();
+
+            return new InvitationsDTO
+            {
+                CompanyId = invitation.CompanyId,
+                InvitationCode = invitation.InvitationCode,
+                ExpirationDate = invitation.ExpirationDate
+            };
+        }
+
+        public async System.Threading.Tasks.Task DeleteConfigAsync(int id)
+        {
+            var existing = await _context.CompanyIntegrationConfigs
+               .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (existing != null)
+            {
+                existing.IsDeleted = true;
+
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async System.Threading.Tasks.Task DeleteCompanyAsync(int companyId)
+        {
+            var company = await GetCompanyById(companyId);
+            if (company != null) {
+                company.IsDeleted = true;
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

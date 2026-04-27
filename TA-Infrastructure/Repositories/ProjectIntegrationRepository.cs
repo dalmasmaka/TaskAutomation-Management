@@ -29,7 +29,7 @@ namespace TA_Infrastructure.Repositories
                 AccessToken = integration.AccessToken,
                 RefreshToken = integration.RefreshToken,
                 ExternalId = integration.ExternalId,
-                ExpiresAt = integration.ExpiresAt
+                ExpiresAt = integration.ExpiresAt,
             };
             return System.Threading.Tasks.Task.FromResult<ProjectIntegrationDTO?>(dto);
         }
@@ -64,6 +64,25 @@ namespace TA_Infrastructure.Repositories
             else
             {
                 await _context.ProjectIntegrations.AddAsync(projectIntegration);
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        public async System.Threading.Tasks.Task SaveTasksAsync(List<TaskDTO> tasks)
+        {
+            foreach (var taskDto in tasks)
+            {
+
+                var save = new TA_Domain.Entities.Task
+                {
+                    ExternalId = taskDto.ExternalId!,
+                    Title = taskDto.Title!,
+                    Description = taskDto.Description,
+                    Status = taskDto.Status!,
+                    ImportStatus = taskDto.ImportStatus,
+                    ProjectId = taskDto.ProjectId
+                };
+                _context.Tasks.Add(save);
             }
             await _context.SaveChangesAsync();
         }

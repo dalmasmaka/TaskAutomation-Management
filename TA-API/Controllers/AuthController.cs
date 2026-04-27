@@ -1,10 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Services;
-using TA_Application.Services;
 
 namespace TA_API.Controllers
 {
@@ -38,7 +35,6 @@ namespace TA_API.Controllers
         [HttpDelete("deleteUser/{userId}")]
         public async Task<IActionResult> DeleteUser(string userId)
         {
-          
             await _appService.DeleteUserAsync(userId);
             return Ok();
         }
@@ -82,6 +78,18 @@ namespace TA_API.Controllers
         {
             var roles = await _appService.GetAllRoles(userId);
             return Ok(roles);
+        }
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordRequestDTO request)
+        {
+            var result = await _appService.ForgotPasswordAsync(request);
+            return Ok(result);
+        }
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordRequestDTO request)
+        {
+           var result = await _appService.ResetPasswordAsync(request);
+            return Ok(result);
         }
     }
 }
