@@ -109,6 +109,7 @@ namespace TA_Infrastructure.Persistence
         public DbSet<ProjectIntegration> ProjectIntegrations { get; set; }
         public DbSet<UserProject> UserProjects { get; set; }
         public DbSet<TaskMember> TaskMembers { get; set; }
+        public DbSet<ProjectWebhook> ProjectWebhooks { get; set; }
 
 
     }

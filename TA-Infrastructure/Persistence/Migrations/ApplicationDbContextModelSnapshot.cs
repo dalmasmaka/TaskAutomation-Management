@@ -434,6 +434,9 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.Property<string>("AccessToken")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("CloudId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -442,6 +445,9 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("ExternalBoardId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ExternalId")
                         .HasColumnType("nvarchar(max)");
@@ -473,6 +479,52 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.HasIndex("UpdatedById");
 
                     b.ToTable("ProjectIntegrations");
+                });
+
+            modelBuilder.Entity("TA_Domain.Entities.ProjectWebhook", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CallbackUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ExternalWebhookId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("ProjectWebhooks");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.PullRequest", b =>
@@ -597,7 +649,7 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.Property<string>("Priority")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("ProjectId")
+                    b.Property<int>("ProjectId")
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
@@ -699,7 +751,6 @@ namespace TA_Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("UserId")
-                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
@@ -940,6 +991,21 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
+            modelBuilder.Entity("TA_Domain.Entities.ProjectWebhook", b =>
+                {
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById");
+
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("UpdatedBy");
+                });
+
             modelBuilder.Entity("TA_Domain.Entities.PullRequest", b =>
                 {
                     b.HasOne("TA_Domain.Entities.CodeGeneration", "CodeGeneration")
@@ -994,7 +1060,9 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.HasOne("TA_Domain.Entities.Project", "Project")
                         .WithMany("Tasks")
-                        .HasForeignKey("ProjectId");
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("TA_Domain.Entities.ApplicationUser", "UpdatedBy")
                         .WithMany()
@@ -1061,8 +1129,7 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.HasOne("TA_Domain.Entities.ApplicationUser", "User")
                         .WithMany("UserProjects")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("CreatedBy");
 

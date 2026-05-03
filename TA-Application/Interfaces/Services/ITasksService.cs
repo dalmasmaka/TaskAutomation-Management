@@ -16,6 +16,8 @@ namespace TA_Application.Interfaces.Services
         Task<TaskMembersResponseDTO> GetAllMembersAsync(int taskId);
         Task<List<UserDTO>> GetTaskMembers(int taskId);
         public Task RemoveMember(string id, int taskId);
+        Task<ResponseDTO> SaveJiraWebhookTask(int projectId, JiraWebhookPayload payload);
+        Task<ResponseDTO> ProcessTrelloWebhookAsync(int projectId, TrelloWebhookPayload payload);
 
     }
 }

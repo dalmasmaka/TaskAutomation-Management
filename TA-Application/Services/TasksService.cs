@@ -32,13 +32,13 @@ namespace TA_Application.Services
                 if (id == 0) throw new ArgumentException("Id is null", nameof(id));
                 await _tasksRepository.DeleteAsync(id);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting task!");
             }
         }
 
-      
+
         public async Task<PagedResult<TaskDTO>> GetProjectTasks(int projectId)
         {
             var query = _tasksRepository.GetProjectTasks(projectId);
@@ -49,7 +49,7 @@ namespace TA_Application.Services
 
             return new PagedResult<TaskDTO>
             {
-                Items = items, 
+                Items = items,
                 TotalCount = totalCount
             };
         }
@@ -71,7 +71,7 @@ namespace TA_Application.Services
                 };
                 return dto;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching task!");
                 return new TaskDTO();
@@ -227,7 +227,7 @@ namespace TA_Application.Services
                 var taskMembers = await _tasksRepository.GetTaskMembers(taskId);
                 return taskMembers;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching members!");
                 return new List<UserDTO>();
@@ -235,14 +235,166 @@ namespace TA_Application.Services
         }
         public async System.Threading.Tasks.Task RemoveMember(string id, int taskId)
         {
-            if(string.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            if (string.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
             try
             {
                 await _tasksRepository.RemoveMember(id, taskId);
 
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "Error removing member!");
+            }
+        }
+        public async Task<ResponseDTO> SaveJiraWebhookTask(int projectId, JiraWebhookPayload payload)
+        {
+            try
+            {
+                if (payload?.Issue == null)
+                    return new ResponseDTO { Success = false, Message = "Invalid payload" };
+
+                var issueKey = payload.Issue.Key;
+
+                var existing = await _tasksRepository.GetTaskByExternalIdAsync(issueKey);
+
+                if (payload.WebhookEvent == "jira:issue_created")
+                {
+                    if (existing != null)
+                    {
+                        return new ResponseDTO
+                        {
+                            Success = true,
+                            Message = "Task already exists"
+                        };
+                    }
+
+                    var task = new TaskDTO
+                    {
+                        ProjectId = projectId,
+                        ExternalId = issueKey,
+                        Title = payload.Issue.Fields.Summary,
+                        Description = payload.Issue.Fields.Description,
+                        Status = payload.Issue.Fields.Status?.Name,
+                        ImportStatus = payload.Issue.Fields.Status?.Name,
+                        Priority = payload.Issue.Fields.Priority?.Name
+                    };
+
+                    await _tasksRepository.CreateTaskAsync(task);
+
+                    return new ResponseDTO
+                    {
+                        Success = true,
+                        Message = "Task created successfully"
+                    };
+                }
+
+                else if (payload.WebhookEvent == "jira:issue_updated")
+                {
+                    if (existing == null)
+                    {
+                        return new ResponseDTO
+                        {
+                            Success = false,
+                            Message = "Task not found for update"
+                        };
+                    }
+
+                    //// Optional: only update if status actually changed
+                    //var statusChanged = payload.Changelog?.Items?
+                    //    .Any(x => x.Field == "status") == true;
+
+                    var updatedTask = new UpdateTaskDTO
+                    {
+                        TaskId = existing.TaskId,
+                        Title = payload.Issue.Fields.Summary,
+                        Description = payload.Issue.Fields.Description,
+                        Status = payload.Issue.Fields.Status?.Name,
+                        Priority = payload.Issue.Fields.Priority?.Name
+                    };
+
+                    // 🔥 THIS was missing
+                    await _tasksRepository.UpdateTaskAsync(updatedTask);
+
+                    return new ResponseDTO
+                    {
+                        Success = true,
+                        Message = "Task updated from Jira webhook"
+                    };
+                }
+
+                return new ResponseDTO
+                {
+                    Success = true,
+                    Message = "Event ignored"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving task from Jira webhook!");
+                throw;
+            }
+        }
+
+        public async Task<ResponseDTO> ProcessTrelloWebhookAsync(int projectId, TrelloWebhookPayload payload)
+        {
+            try
+            {
+                var card = payload.Action.Data.Card;
+
+                var existingTask = await _tasksRepository.GetTaskByExternalIdAsync(card.Id);
+
+                if (existingTask != null)
+                {
+                    var updatedTask = new UpdateTaskDTO
+                    {
+                        TaskId = existingTask.TaskId,
+                        Title = card.Name,
+                        Description = card.Desc,
+                        Status = payload.Action.Data.List?.Name,
+                    };
+
+                    await _tasksRepository.UpdateTaskAsync(updatedTask);
+
+                    return new ResponseDTO
+                    {
+                        Success = true,
+                        Message = "Task updated from Jira webhook"
+                    };
+                }
+                else if (payload.Action.Type == "createCard")
+                {
+                    var newTask = new TaskDTO
+                    {
+                        ProjectId = projectId,
+                        ExternalId = card.Id, 
+                        Title = card.Name,
+                        Description = card.Desc,
+                        Status = payload.Action.Data.List?.Name,
+                        ImportStatus = payload.Action.Data.List?.Name,
+                        Priority = "Medium" // Trello doesn't have native priority, so this is just a placeholder
+                    };
+
+                    await _tasksRepository.CreateTaskAsync(newTask);
+                    return new ResponseDTO
+                    {
+                        Success = true,
+                        Message = "Task created from Trello webhook"
+                    };
+                }
+                return new ResponseDTO
+                {
+                    Success = true,
+                    Message = "Event ignored"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing Trello webhook!");
+                return new ResponseDTO
+                {
+                    Success = false,
+                    Message = "Error processing Trello webhook"
+                };
             }
         }
     }

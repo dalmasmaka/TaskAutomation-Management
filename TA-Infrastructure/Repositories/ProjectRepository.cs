@@ -245,6 +245,5 @@ namespace TA_Infrastructure.Repositories
                })
                .ToListAsync();
         }
-
     }
 }

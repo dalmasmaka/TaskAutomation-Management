@@ -9,16 +9,20 @@ namespace TA_Application.Services
         private readonly IProjectIntegrationRepository _integrationRepo;
         private readonly ICompanyConfigRepository _configRepo;
         private readonly IServiceProvider _serviceProvider;
+        private readonly WebhookServiceFactory _webhookFactory;
 
         public TaskProviderFactory(
             IProjectIntegrationRepository integrationRepo,
             ICompanyConfigRepository configRepo,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            WebhookServiceFactory webhookFactory)
         {
             _integrationRepo = integrationRepo;
             _configRepo = configRepo;
             _serviceProvider = serviceProvider;
+            _webhookFactory = webhookFactory;
         }
+
 
         public async Task<ITaskProviderService> GetProvider(string provider, int companyId)
         {
@@ -29,11 +33,13 @@ namespace TA_Application.Services
                 "jira" => new JiraProvider(
                     _serviceProvider.GetRequiredService<IJiraHttpClient>(),
                     _integrationRepo,
-                    companyConfig),
+                    companyConfig,
+                    _webhookFactory),
                 "trello" => new TrelloProvider(
                     _serviceProvider.GetRequiredService<ITrelloHttpClient>(),
                     _integrationRepo,
-                    companyConfig),
+                    companyConfig,
+                    _webhookFactory),
                 _ => throw new Exception("Provider not supported")
             };
         }

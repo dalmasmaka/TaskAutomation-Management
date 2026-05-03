@@ -10,10 +10,12 @@ namespace TA_Application.Interfaces.Repositories
         Task<UpdateTaskDTO> UpdateTaskAsync(UpdateTaskDTO dto);
         Task DeleteAsync(int id);
         Task<TaskDTO> GetTaskById(int id);
+        Task<TaskDTO> CreateTaskAsync(TaskDTO dto);
         IQueryable<TaskDTO> GetAllTasks(string userId, string role, int companyId);
         IQueryable<TaskDTO> GetProjectTasks(int projectId);
         Task<List<UserDTO>> GetTaskMembers(int taskId);
         Task<TaskMembersDTO?> SaveTaskMembers(TaskMembersDTO dto);
         Task RemoveMember(string id, int taskId);
+        Task<TaskDTO> GetTaskByExternalIdAsync(string externalId);
     }
 }

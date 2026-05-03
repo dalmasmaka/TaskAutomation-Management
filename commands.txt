@@ -1,2 +1,7 @@
 Add-Migration InitialCreate -Project TA-Infrastructure -StartupProject TA-API -OutputDir Persistence/Migrations
 Update-Database -StartupProject TA-API
+
+ngrok http https://localhost:44300
+ngrok http https://localhost:44300 --host-header=localhost:44300
+
+https://api.trello.com/1/tokens/ATTA0782d3882efee94f25fc8ec92992c30a684ba38b71fdb08597f8fae9dbf08dd4192EB093/webhooks?key=b56de796ab7cc79da4be7f31d0c64b40 method get

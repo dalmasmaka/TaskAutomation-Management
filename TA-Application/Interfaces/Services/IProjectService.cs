@@ -18,5 +18,6 @@ namespace TA_Application.Interfaces.Services
         Task<ResponseDTO> AssignUsersToProject(AssignProjectUsersDTO dto);
         Task<List<UserDTO>> GetMembersAsync(int projectId);
         Task RemoveMemberAsync(string userId, int projectId);
+        Task<ProjectDTO>GetProjectByExternalId(string externalId);
     }
 }

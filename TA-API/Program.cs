@@ -1,11 +1,10 @@
-using System.Text;
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-
+using System.Text;
 using TA_API.Seeding;
 using TA_Application.Configurations;
 using TA_Application.Interfaces.Repositories;
@@ -78,18 +77,28 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
+
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+//builder.Services.AddHostFiltering(options =>
+//{
+//    options.AllowedHosts.Clear();
+//    options.AllowedHosts.Add("*");
+//});
+// In Program.cs
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.SuppressModelStateInvalidFilter = true;
+});
+builder.Services.PostConfigure<Microsoft.AspNetCore.HostFiltering.HostFilteringOptions>(options =>
+{
+    options.AllowedHosts = new[] { "*" };
+});
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
-//builder.Services.Configure<ProvidersSettings>(builder.Configuration.GetSection("Providers"));
 builder.Services.Configure<ProvidersSettings>(builder.Configuration.GetSection("Providers"));
-//builder.Services.Configure<TaskProvidersSettings>("Jira", builder.Configuration.GetSection("Providers:Jira"));
-//builder.Services.Configure<TaskProvidersSettings>("Trello", builder.Configuration.GetSection("Providers:Trello"));
-//builder.Services.Configure<JiraSettings>(
-//    builder.Configuration.GetSection("Providers:Trello"));
-// 1. Register the HttpClients (using AddHttpClient is best for Jira/Trello)
+
 builder.Services.AddHttpClient<IJiraHttpClient, JiraHttpClient>();
 builder.Services.AddHttpClient<ITrelloHttpClient, TrelloHttpClient>();
 builder.Services.AddScoped<IProjectIntegrationRepository, ProjectIntegrationRepository>();
@@ -113,6 +122,15 @@ builder.Services.AddScoped<IPasswordHasherService, PasswordHasherService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
 builder.Services.AddScoped<IEmailService, EmailService>();
+
+builder.Services.AddHostedService<JiraTokenRefreshService>();
+
+builder.Services.AddScoped<WebhookServiceFactory>();
+
+builder.Services.AddHttpClient<TrelloWebhookService>();
+builder.Services.AddHttpClient<JiraWebhookService>();
+
+builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddOptions();
@@ -143,8 +161,9 @@ using (var scope = app.Services.CreateScope())
     await RoleSeeder.SeedAsync(roleManager);
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseRouting();
+app.MapControllers();
 app.UseCors("AllowAngular");
 
 app.UseAuthentication();
@@ -156,6 +175,6 @@ if (app.Environment.IsDevelopment())
 }
 
 
-app.MapControllers();
+
 
 app.Run();

@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.VisualBasic;
+using Newtonsoft.Json;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using TA_Application.Configurations;
 using TA_Application.DTOs;
@@ -26,7 +28,7 @@ namespace TA_Infrastructure.HttpClients
         public Task<string> GetAuthorizationUrlAsync(string clientId, string redirectUri, int projectId, int companyId)
         {
             var state = $"{projectId}:{companyId}";
-            var scopes = "read:jira-work read:project:jira-software read:board-scope:jira-software offline_access";
+            var scopes = "read:jira-work read:project:jira-software read:board-scope:jira-software manage:jira-webhook delete:webhook:jira manage:jira-configuration read:webhook:jira write:webhook:jira offline_access";
             var url = $"{_settings.AuthBaseUrl}{_settings.AuthorizeEndpoint}" +
                       $"?audience=api.atlassian.com" +
                       $"&client_id={clientId}" +
@@ -38,13 +40,12 @@ namespace TA_Infrastructure.HttpClients
 
             return System.Threading.Tasks.Task.FromResult(url);
         }
-        // 🔹 2. Exchange Code → Access Token
-        public async Task<string> ExchangeCodeForTokenAsync(
-            string code,
-            int porjectId,
-            string clientId,
-            string clientSecret,
-            string redirectUri)
+        public async Task<JiraTokenResponseDTO> ExchangeCodeForTokenAsync(
+    string code,
+    int projectId,
+    string clientId,
+    string clientSecret,
+    string redirectUri)
         {
             var tokenUrl = $"{_settings.AuthBaseUrl}{_settings.TokenEndpoint}";
 
@@ -66,8 +67,43 @@ namespace TA_Infrastructure.HttpClients
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
 
-            return doc.RootElement.GetProperty("access_token").GetString()!;
+            return new JiraTokenResponseDTO
+            {
+                AccessToken = doc.RootElement.GetProperty("access_token").GetString()!,
+                RefreshToken = doc.RootElement.GetProperty("refresh_token").GetString()!, // ✅ THIS WAS MISSING
+                ExpiresIn = doc.RootElement.GetProperty("expires_in").GetInt32()
+            };
         }
+        // 🔹 2. Exchange Code → Access Token
+        //public async Task<string> ExchangeCodeForTokenAsync(
+        //    string code,
+        //    int porjectId,
+        //    string clientId,
+        //    string clientSecret,
+        //    string redirectUri)
+        //{
+        //    var tokenUrl = $"{_settings.AuthBaseUrl}{_settings.TokenEndpoint}";
+
+        //    var request = new HttpRequestMessage(HttpMethod.Post, tokenUrl)
+        //    {
+        //        Content = JsonContent.Create(new
+        //        {
+        //            grant_type = "authorization_code",
+        //            client_id = clientId,
+        //            client_secret = clientSecret,
+        //            code = code,
+        //            redirect_uri = redirectUri
+        //        })
+        //    };
+
+        //    var response = await _httpClient.SendAsync(request);
+        //    response.EnsureSuccessStatusCode();
+
+        //    var json = await response.Content.ReadAsStringAsync();
+        //    using var doc = JsonDocument.Parse(json);
+
+        //    return doc.RootElement.GetProperty("access_token").GetString()!;
+        //}
         // 🔹 3. Get CloudId
         public async Task<string> GetCloudIdAsync(string accessToken)
         {
@@ -245,6 +281,36 @@ namespace TA_Infrastructure.HttpClients
                 return adfElement.GetRawText();
             }
             return "";
+        }
+        public async Task<JiraTokenResponseDTO> RefreshTokenAsync(
+    string refreshToken,
+    string clientId,
+    string clientSecret)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post,
+                "https://auth.atlassian.com/oauth/token");
+
+            var body = new
+            {
+                grant_type = "refresh_token",
+                client_id = clientId,
+                client_secret = clientSecret,
+                refresh_token = refreshToken
+            };
+
+            request.Content = new StringContent(
+                JsonConvert.SerializeObject(body),
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+                throw new Exception("Failed to refresh Jira token");
+
+            var content = await response.Content.ReadAsStringAsync();
+
+            return JsonConvert.DeserializeObject<JiraTokenResponseDTO>(content)!;
         }
     }
 }
