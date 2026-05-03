@@ -176,5 +176,21 @@ namespace TA_Application.Services
                 throw;
             }
         }
+
+        public Task<ProjectDTO> GetProjectByExternalId(string externalId)
+        {
+            try
+            {
+                if(externalId == null) throw new ArgumentNullException(nameof(externalId));
+                var project = _integrationRepository.GetProjectByExternalId(externalId);
+                return project;
+
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching projects!");
+                throw;
+            }
+        }
     }
 }

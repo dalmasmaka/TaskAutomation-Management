@@ -64,12 +64,8 @@ namespace TA_Infrastructure.Repositories
         {
             ArgumentNullException.ThrowIfNull(email);
 
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email);
-
-            ArgumentNullException.ThrowIfNull(user);
-
-            return user;
+            return await _context.Users
+         .FirstOrDefaultAsync(u => u.Email == email);
         }
 
         public async Task<int> GetTotalUsersCountAsync()

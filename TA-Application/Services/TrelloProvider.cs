@@ -13,12 +13,14 @@ namespace TA_Application.Services
         private readonly ITrelloHttpClient _httpClient;
         private readonly IProjectIntegrationRepository _projectRepo;
         private readonly CompanyIntegrationConfig _config;
+        private readonly WebhookServiceFactory _webhookFactory;
 
-        public TrelloProvider(ITrelloHttpClient httpClient, IProjectIntegrationRepository projectRepo, CompanyIntegrationConfig config)
+        public TrelloProvider(ITrelloHttpClient httpClient, IProjectIntegrationRepository projectRepo, CompanyIntegrationConfig config, WebhookServiceFactory webhookFactory)
         {
             _httpClient = httpClient;
             _projectRepo = projectRepo;
             _config = config;
+            _webhookFactory = webhookFactory;
         }
 
         public async Task<string> GetAuthUrlAsync(int projectId, int companyId)
@@ -34,7 +36,6 @@ namespace TA_Application.Services
                 AccessToken = token,
                 ExpiresAt = null // Trello tokens can be set to "never" expire
             };
-
             await _projectRepo.SaveAsync(integration);
         }
 
@@ -67,6 +68,7 @@ namespace TA_Application.Services
           );
 
             await _projectRepo.SaveTasksAsync(result);
+ 
 
             return new ResponseDTO
             {
@@ -90,6 +92,7 @@ namespace TA_Application.Services
             await _projectRepo.SaveAsync(integration);
             if (integration.AccessToken == null)
                 throw new Exception("Token not found.");
+        
             var result = await _httpClient.GetTrelloTasks(
                 integration.AccessToken,
                 boardId,
@@ -98,6 +101,8 @@ namespace TA_Application.Services
             );
 
             await _projectRepo.SaveTasksAsync(result);
+            var webhookService = await _webhookFactory.GetAsync("Trello", integration.CompanyId);
+            await webhookService.RegisterAsync(integration);
         }
 
     }

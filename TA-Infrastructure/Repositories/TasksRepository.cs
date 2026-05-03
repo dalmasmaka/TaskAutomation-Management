@@ -14,6 +14,28 @@ namespace TA_Infrastructure.Repositories
             _context = context;
         }
 
+        public async Task<TaskDTO> CreateTaskAsync(TaskDTO dto)
+        {
+            var newTask = new TA_Domain.Entities.Task
+            {
+                Title = dto.Title,
+                ExternalId = dto.ExternalId,
+                Description = dto.Description,
+                ImportStatus = dto.Status,
+                Status = dto.Status,
+                Priority = dto.Priority,
+                ProjectId = dto.ProjectId,
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow
+
+            };
+            _context.Tasks.Add(newTask);
+            await _context.SaveChangesAsync();
+
+            dto.TaskId = newTask.TaskId;
+            return dto;
+        }
+
         public async System.Threading.Tasks.Task DeleteAsync(int id)
         {
             var existing = await GetTaskById(id);
@@ -83,6 +105,24 @@ namespace TA_Infrastructure.Repositories
                 });
 
             return dtoQuery;
+        }
+
+        public async Task<TaskDTO> GetTaskByExternalIdAsync(string externalId)
+        {
+            return await _context.Tasks
+                .Where(t => t.ExternalId == externalId && !t.IsDeleted)
+                .Select(t => new TaskDTO
+                {
+                    TaskId = t.TaskId,
+                    Title = t.Title,
+                    Description = t.Description,
+                    Status = t.Status,
+                    Priority = t.Priority,
+                    ProjectName = t.Project != null ? t.Project.Name : null,
+                    isDeleted = t.IsDeleted,
+                    ProjectId = t.ProjectId
+                })
+                .FirstOrDefaultAsync();
         }
 
         public async Task<TaskDTO> GetTaskById(int id)

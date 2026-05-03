@@ -10,12 +10,14 @@ namespace TA_Application.Services
         private readonly IJiraHttpClient _httpClient;
         private readonly IProjectIntegrationRepository _projectRepo;
         private readonly CompanyIntegrationConfig _config;
+        private readonly WebhookServiceFactory _webhookFactory;
 
-        public JiraProvider(IJiraHttpClient httpClient, IProjectIntegrationRepository projectRepo, CompanyIntegrationConfig config)
+        public JiraProvider(IJiraHttpClient httpClient, IProjectIntegrationRepository projectRepo, CompanyIntegrationConfig config, WebhookServiceFactory webhookFactory)
         {
             _httpClient = httpClient;
             _projectRepo = projectRepo;
             _config = config;
+            _webhookFactory = webhookFactory;
         }
         public async Task<string> GetAuthUrlAsync(int projectId, int companyId)
             => await _httpClient.GetAuthorizationUrlAsync(_config.ClientId!, _config.RedirectUri!, projectId, companyId);
@@ -27,7 +29,7 @@ namespace TA_Application.Services
                 code, projectId, _config.ClientId!, _config.ClientSecret!, _config.RedirectUri!);
 
             // 2. Get the specific "Cloud ID" (ExternalId) for this Jira instance
-            var cloudId = await _httpClient.GetCloudIdAsync(accessToken);
+            var cloudId = await _httpClient.GetCloudIdAsync(accessToken.AccessToken);
             
             // 3. Save or Update the ProjectIntegration record
             var integration = new ProjectIntegrationDTO
@@ -35,12 +37,15 @@ namespace TA_Application.Services
                 ProjectId = projectId,
                 Provider = "Jira",
                 Project = null!, // This will be set by the repository when linking to the actual Project entity
-                AccessToken = accessToken,
-                ExternalId = cloudId,
-                ExpiresAt = DateTime.UtcNow.AddDays(10) // Jira tokens usually last 1 hour
+                AccessToken = accessToken.AccessToken,
+                RefreshToken = accessToken.RefreshToken,
+                CloudId = cloudId,
+                ExpiresAt = DateTime.UtcNow.AddHours(1) // Jira tokens usually last 1 hour
             };
 
             await _projectRepo.SaveAsync(integration);
+         
+           
         }
         public async Task<List<Board>> GetBoardsAsync(int projectId)
         {
@@ -49,7 +54,7 @@ namespace TA_Application.Services
             if (integration == null || string.IsNullOrEmpty(integration.AccessToken))
                 throw new Exception("Project is not integrated with Jira.");
 
-            return await _httpClient.GetBoardsAsync(integration.AccessToken, integration.ExternalId!);
+            return await _httpClient.GetBoardsAsync(integration.AccessToken, integration.CloudId!);
         }
         public async System.Threading.Tasks.Task SaveBoardSelectionAsync(int projectId, string boardId, string key)
         {
@@ -60,16 +65,18 @@ namespace TA_Application.Services
 
             // Update the ExternalBoardId (Ensure this property exists in your DTO/Entity)
             integration.ExternalBoardId = boardId;
-
+            integration.ExternalId = key;
             await _projectRepo.SaveAsync(integration);
             var result = await _httpClient.GetJiraTasksAsync(
                    integration.AccessToken!,
-                   integration.ExternalId!,
+                   integration.CloudId!,
                    key,
                    projectId
                );
 
             await _projectRepo.SaveTasksAsync(result);
+            var webhookService = await _webhookFactory.GetAsync("Jira", integration.CompanyId);
+            await webhookService.RegisterAsync(integration);
         }
 
         public async Task<ResponseDTO> SaveTasks(int projectId)
@@ -84,12 +91,13 @@ namespace TA_Application.Services
 
                 var result = await _httpClient.GetJiraTasksAsync(
                   integration.AccessToken!,
-                  integration.ExternalId!,
+                  integration.CloudId!,
                   integration.ExternalBoardId!,
                   projectId
               );
-
+               
                 await _projectRepo.SaveTasksAsync(result);
+                
 
                 return new ResponseDTO
                 {
