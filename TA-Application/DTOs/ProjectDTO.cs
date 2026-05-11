@@ -5,8 +5,11 @@
         public int ProjectId { get; set; }
 
         public string? Name { get; set; }
-        public string? Platform { get; set; }
-        public string? RepoURl { get; set; }
+        public string? Provider { get; set; }
+        public string? RepoName { get; set; }
+        public string? RepoOwner { get; set; }
+        public string? DefaultBranch { get; set; }
+        public string? AccessToken { get; set; }
         public int CompanyId { get; set; }
         public string? CreatedBy { get; set; }
         public int TotalUsers { get; set; }
@@ -19,8 +22,11 @@
     {
         public int ProjectId { get; set; }
         public string? Name { get; set; }
-        public string? Platform { get; set; }
-        public string? RepoURl { get; set; }
+        public string? Provider { get; set; }
+        public string? RepoName { get; set; }
+        public string? RepoOwner { get; set; }
+        public string? DefaultBranch { get; set; }
+        public string? AccessToken { get; set; }
         public int CompanyId { get; set; }
         public DateTime? CreatedTime { get; set; }
         public string? UserId { get; set; }

@@ -103,8 +103,8 @@ namespace TA_API.Controllers
             await _projectService.RemoveMemberAsync(userId, projectId);
             return Ok();
         }
-        [HttpPost("createProject")]
-        public async Task<IActionResult> CreateProject(CreateProjectDTO dto)
+        [HttpPost("saveProject")]
+        public async Task<IActionResult> SaveProject(CreateProjectDTO dto)
         {
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();

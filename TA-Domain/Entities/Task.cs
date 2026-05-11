@@ -20,7 +20,6 @@ namespace TA_Domain.Entities
         public int ProjectId { get; set; }
         public Project? Project { get; set; }
         //nav props
-        public ICollection<CodeGeneration>? CodeGenerations { get; set; }
         public ICollection<TaskMember> TaskMembers { get; set; } = new List<TaskMember>();
     }
 }

@@ -134,15 +134,20 @@ namespace TA_Application.Services
             {
                 var projectDTO = new CreateProjectDTO
                 {
+                    ProjectId = project.ProjectId,
                     Name = project.Name,
-                    Platform = project.Platform,
-                    RepoURl = project.RepoURl,
                     CompanyId = companyId,
+                    Provider = project.Provider,
+                    RepoName = project.RepoName,
+                    RepoOwner = project.RepoOwner,
+                    DefaultBranch = project.DefaultBranch,
+                    AccessToken = project.AccessToken,
                     CreatedTime = DateTime.Now,
                     UserId = userId,
                 };
 
                 var savedProject = await _projectRepository.SaveAsync(projectDTO);
+                var saveIntegration = await _projectRepository.SaveIntegrationAsync(projectDTO);
 
                 return new ResponseDTO
                 {

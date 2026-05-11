@@ -3,18 +3,20 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TA_Domain.Entities
 {
-    public class PullRequest: AuditEntity
+    public class PullRequest : AuditEntity
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int PRId { get; set; }
-        [ForeignKey("CodeGeneration")]
-        public int CodeGenId { get; set; }
-        public required CodeGeneration CodeGeneration { get; set; }
-        [MaxLength(200)]
-        public required string BranchName { get; set; }
-        public required string Status { get; set; } // Open, Merged, Closed, ChangesRequired
-                                                    // Navigation properties
+        public int Id { get; set; }
+        public long ExternalId { get; set; }
+        [ForeignKey("TaskId")]
+        public int TaskId { get; set; }
+        public Task? Task { get; set; }
+        public string? BranchName { get; set; }
+        public  string? PRUrl { get; set; }
+        public string? PRName { get; set; }
+        public  string? PRDescription { get; set; }
+        public  string? Status { get; set; } // Open, Merged, Closed, ChangesRequired
         public ICollection<Review>? Reviews { get; set; }
     }
 }

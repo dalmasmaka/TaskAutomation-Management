@@ -1,11 +1,12 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 using System.Text;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
 using TA_Domain.Entities;
-using Microsoft.AspNetCore.WebUtilities;
 namespace TA_Application.Services
 {
     public class ApplicationUserService: IAppUserService
@@ -106,9 +107,10 @@ namespace TA_Application.Services
                     user.CompanyId = workspaceResult.Id;
                     await _repo.UpdateUser(user);
                 }
+              
+                var token = _jwtService.GenerateToken(user, userDTO.Role);
 
-               
-                return new ResponseDTO { Success = true, Message = "User registered successfully." };
+                return new ResponseDTO { Success = true, Message = token };
             }
             catch (Exception ex)
             {
