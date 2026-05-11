@@ -29,8 +29,6 @@ namespace TA_Infrastructure.Repositories
             {
                 // Update existing record
                 existing.Name = project.Name!;
-                existing.Platform = project.Platform!;
-                existing.RepoURl = project.RepoURl;
                 existing.CompanyId = project.CompanyId;
                 existing.UpdatedAt = DateTime.Now;
                 existing.UpdatedById = project.UserId;
@@ -46,14 +44,54 @@ namespace TA_Infrastructure.Repositories
                 var newProject = new Project
                 {
                     Name = project.Name!,
-                    Platform = project.Platform!,
-                    RepoURl = project.RepoURl,
                     CompanyId = project.CompanyId,
                     CreatedById = project.UserId,
-                    CreatedAt = DateTime.Now 
+                    CreatedAt = DateTime.Now
                 };
 
                 await _context.Projects.AddAsync(newProject);
+                await _context.SaveChangesAsync();
+
+                project.ProjectId = newProject.ProjectId;
+                return project;
+            }
+        }
+        public async Task<CreateProjectDTO> SaveIntegrationAsync(CreateProjectDTO project)
+        {
+            var existing = await _context.GitHubConfigs
+                .FirstOrDefaultAsync(pi => pi.ProjectId == project.ProjectId);
+
+            if (existing != null)
+            {
+                existing.Provider = project.Provider;
+                existing.RepoName = project.RepoName;
+                existing.RepoOwner = project.RepoOwner;
+                existing.DefaultBranch = project.DefaultBranch;
+                existing.AccessToken = project.AccessToken;
+                existing.UpdatedAt = DateTime.Now;
+                existing.UpdatedById = project.UserId;
+
+                await _context.SaveChangesAsync();
+
+                project.ProjectId = existing.ProjectId;
+                return project;
+            }
+            else
+            {
+                // Create new record
+                var newProject = new GitHubConfig
+                {
+                    ProjectId = project.ProjectId,
+                    Provider = project.Provider,
+                    RepoName = project.RepoName,
+                    RepoOwner = project.RepoOwner,
+                    DefaultBranch = project.DefaultBranch,
+                    AccessToken = project.AccessToken,
+                    CreatedAt = DateTime.Now,
+                    CreatedById = project.UserId
+                };
+
+                await _context.GitHubConfigs.AddAsync(newProject);
                 await _context.SaveChangesAsync();
 
                 project.ProjectId = newProject.ProjectId;
@@ -78,28 +116,59 @@ namespace TA_Infrastructure.Repositories
         {
             return await _context.Projects
                 .Where(p => !p.IsDeleted && p.CompanyId == companyId)
-                .OrderByDescending(d => d.ProjectId)
+                .OrderByDescending(p => p.ProjectId)
                 .Select(p => new ProjectDTO
                 {
                     ProjectId = p.ProjectId,
                     Name = p.Name,
-                    Platform = p.Platform,
-                    RepoURl = p.RepoURl,
+
+                    Provider = p.RepositoryConfigs
+                    .FirstOrDefault() != null
+                        ? p.RepositoryConfigs.FirstOrDefault()!.Provider
+                        : null,
+
+                    RepoName = p.RepositoryConfigs
+                    .FirstOrDefault() != null
+                        ? p.RepositoryConfigs.FirstOrDefault()!.RepoName
+                        : null,
+
+                    RepoOwner = p.RepositoryConfigs
+                    .FirstOrDefault() != null
+                        ? p.RepositoryConfigs.FirstOrDefault()!.RepoOwner
+                        : null,                 
+
+                    DefaultBranch = p.RepositoryConfigs
+                    .FirstOrDefault() != null
+                        ? p.RepositoryConfigs.FirstOrDefault()!.DefaultBranch
+                        : null,
+
+                    AccessToken = p.RepositoryConfigs
+                    .FirstOrDefault() != null
+                        ? p.RepositoryConfigs.FirstOrDefault()!.AccessToken
+                        : null,
+
                     CompanyId = p.CompanyId,
+
                     CreatedAt = p.CreatedAt.ToString("dd MMMM yyyy"),
-                    CreatedBy =  p.CreatedBy!.FullName,
+
+                    CreatedBy = p.CreatedBy != null
+                        ? p.CreatedBy.FullName
+                        : null,
+
                     TotalUsers = p.UserProjects!
-                .Count(up => !up.IsDeleted && !up.User!.isDeleted),
+                        .Count(up => !up.IsDeleted && !up.User!.isDeleted),
 
-                    TotalTasks = p.Tasks!.Count(t => !t.IsDeleted),
+                    TotalTasks = p.Tasks!
+                        .Count(t => !t.IsDeleted),
+
                     IsAssigned = p.UserProjects!
-                .Any(up => up.UserId == userId && !up.IsDeleted),
-                    HasConfig = p.ProjectIntegrations!.Any(pi => pi.ProjectId == p.ProjectId)
-                })
+                        .Any(up => up.UserId == userId && !up.IsDeleted),
 
+                    HasConfig = p.ProjectIntegrations!
+                        .Any(pi => pi.ProjectId == p.ProjectId)
+                })
                 .ToListAsync();
         }
-
         public async Task<List<ProjectDTO>> GetProjectsAvailableToAssignToUser(int companyId, string userId)
         {
             return await _context.Projects
@@ -244,6 +313,13 @@ namespace TA_Infrastructure.Repositories
                    Name = p.Name,
                })
                .ToListAsync();
+        }
+
+        public async Task<RepoDTO> GetRepoAsync(int projectId)
+        {
+            var project = await _context.GitHubConfigs.FindAsync(projectId);
+            if (project == null) return null;
+            return new RepoDTO { RepoUrl = project.RepoName, RepoOwner = project.RepoOwner };
         }
     }
 }

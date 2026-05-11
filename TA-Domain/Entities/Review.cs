@@ -8,12 +8,14 @@ namespace TA_Domain.Entities
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int ReviewId { get; set; }
-        [ForeignKey("PullRequest")]
-        public int PRId { get; set; }
-        public required PullRequest PullRequest { get; set; }
+        public int PullRequestId { get; set; }
+
+        [ForeignKey("PullRequestId")] // Explicitly link the ID to the Nav property
+        public PullRequest PullRequest { get; set; } = null!;
         public string? Comment { get; set; }
         public required string Decision { get; set; } // Approved / NeedsChanges
 
     }
 }
+
 

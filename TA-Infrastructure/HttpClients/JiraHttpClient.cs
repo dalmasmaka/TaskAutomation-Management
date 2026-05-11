@@ -191,28 +191,6 @@ namespace TA_Infrastructure.HttpClients
                         ? summaryProp.GetString()
                         : "";
 
-                    //string description = "";
-                    //if (fields.TryGetProperty("description", out var descProp))
-                    //{
-
-                    //    if (descProp.ValueKind == JsonValueKind.String)
-                    //        description = descProp.GetString();
-                    //    else if (descProp.ValueKind == JsonValueKind.Object)
-                    //        description = ExtractTextFromAdf(descProp);
-                    //}
-
-                    //string statusName = "";
-                    //if (fields.TryGetProperty("status", out var statusProp) &&
-                    //    statusProp.TryGetProperty("name", out var nameProp))
-                    //{
-                    //    statusName = nameProp.GetString();
-                    //}
-                    //string priorityName = "Medium"; 
-                    //if (fields.TryGetProperty("priority", out var priorityProp) &&
-                    //    priorityProp.TryGetProperty("name", out var pNameProp))
-                    //{
-                    //    priorityName = pNameProp.GetString();
-                    //}
                     string description = string.Empty;
 
                     if (fields.TryGetProperty("description", out var descProp))
@@ -261,27 +239,76 @@ namespace TA_Infrastructure.HttpClients
 
             return tasks;
         }
-        private string ExtractTextFromAdf(JsonElement adfElement)
+        private string ExtractTextFromAdf(JsonElement root)
         {
-            try
+            var sb = new StringBuilder();
+
+            void Traverse(JsonElement node)
             {
-                // Digging into: description -> content -> content -> text
-                if (adfElement.TryGetProperty("content", out var contentArray) && contentArray.GetArrayLength() > 0)
+                if (node.ValueKind != JsonValueKind.Object)
+                    return;
+
+                string? type = null;
+
+                if (node.TryGetProperty("type", out var typeProp))
                 {
-                    var firstParagraph = contentArray[0];
-                    if (firstParagraph.TryGetProperty("content", out var textNodes) && textNodes.GetArrayLength() > 0)
+                    type = typeProp.GetString();
+                }
+
+                // Extract text nodes
+                if (type == "text" &&
+                    node.TryGetProperty("text", out var textProp))
+                {
+                    sb.Append(textProp.GetString());
+                }
+
+                // Add formatting
+                if (type == "paragraph")
+                {
+                    sb.AppendLine();
+                }
+
+                if (type == "listItem")
+                {
+                    sb.Append("- ");
+                }
+
+                // Recursively process children
+                if (node.TryGetProperty("content", out var contentProp) &&
+                    contentProp.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var child in contentProp.EnumerateArray())
                     {
-                        return textNodes[0].GetProperty("text").GetString() ?? "";
+                        Traverse(child);
                     }
                 }
             }
-            catch
-            {
-                // Fallback: If it's too complex, just return the raw text so you don't lose data
-                return adfElement.GetRawText();
-            }
-            return "";
+
+            Traverse(root);
+
+            return sb.ToString().Trim();
         }
+        //private string ExtractTextFromAdf(JsonElement adfElement)
+        //{
+        //    try
+        //    {
+        //        // Digging into: description -> content -> content -> text
+        //        if (adfElement.TryGetProperty("content", out var contentArray) && contentArray.GetArrayLength() > 0)
+        //        {
+        //            var firstParagraph = contentArray[0];
+        //            if (firstParagraph.TryGetProperty("content", out var textNodes) && textNodes.GetArrayLength() > 0)
+        //            {
+        //                return textNodes[0].GetProperty("text").GetString() ?? "";
+        //            }
+        //        }
+        //    }
+        //    catch
+        //    {
+        //        // Fallback: If it's too complex, just return the raw text so you don't lose data
+        //        return adfElement.GetRawText();
+        //    }
+        //    return "";
+        //}
         public async Task<JiraTokenResponseDTO> RefreshTokenAsync(
     string refreshToken,
     string clientId,

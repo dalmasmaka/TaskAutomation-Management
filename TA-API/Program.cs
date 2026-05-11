@@ -94,6 +94,7 @@ builder.Services.PostConfigure<Microsoft.AspNetCore.HostFiltering.HostFilteringO
 {
     options.AllowedHosts = new[] { "*" };
 });
+builder.Services.Configure<GroqSettings>(builder.Configuration.GetSection("Groq"));
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
@@ -118,6 +119,12 @@ builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<ITasksService, TasksService>(); 
 builder.Services.AddScoped<ITasksRepository, TasksRepository>();
 
+builder.Services.AddScoped<IGitHubClientFactory, GitHubClientFactory>();
+builder.Services.AddScoped<IGitHubService, GitHubService>();
+builder.Services.AddScoped<IGitHubConfigRepository, GitHubConfigRepository>();
+builder.Services.AddScoped<IPullRequestService, PullRequestService>();
+builder.Services.AddScoped<IPullRequestRepository, PullRequestRepository>();
+
 builder.Services.AddScoped<IPasswordHasherService, PasswordHasherService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
@@ -129,6 +136,7 @@ builder.Services.AddScoped<WebhookServiceFactory>();
 
 builder.Services.AddHttpClient<TrelloWebhookService>();
 builder.Services.AddHttpClient<JiraWebhookService>();
+builder.Services.AddHttpClient<ICodeGenerationService, CodeGenerationService>();
 
 builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
 

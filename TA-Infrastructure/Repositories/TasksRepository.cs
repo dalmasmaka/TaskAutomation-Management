@@ -58,7 +58,7 @@ namespace TA_Infrastructure.Repositories
                 tasksQuery = tasksQuery
                     .Where(x => x.Project!.CompanyId == companyId);
             }
-            else if (role == "Developer")
+            else if (role == "Developer" || role == "developer")
             {
                 tasksQuery = tasksQuery
                     .Where(x => x.TaskMembers

@@ -348,10 +348,19 @@ namespace TA_Application.Services
                     var updatedTask = new UpdateTaskDTO
                     {
                         TaskId = existingTask.TaskId,
-                        Title = card.Name,
-                        Description = card.Desc,
-                        Status = payload.Action.Data.List?.Name,
+                        Title = !string.IsNullOrWhiteSpace(card.Name)
+                               ? card.Name
+                               : existingTask.Title,
+
+                                            Description = !string.IsNullOrWhiteSpace(card.Desc)
+                               ? card.Desc
+                               : existingTask.Description,
+
+                                            Status = !string.IsNullOrWhiteSpace(payload.Action.Data.List?.Name)
+                               ? payload.Action.Data.List!.Name
+                               : existingTask.Status
                     };
+
 
                     await _tasksRepository.UpdateTaskAsync(updatedTask);
 

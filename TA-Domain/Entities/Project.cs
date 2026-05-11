@@ -13,13 +13,10 @@ namespace TA_Domain.Entities
         public  Company? Company { get; set; }
         [Required, MaxLength(200)]
         public required string Name { get; set; }
-        [MaxLength(50)]
-        public required string Platform { get; set; }
-        [MaxLength(500)]
-        public string? RepoURl { get; set; }
         public ICollection<Task>? Tasks { get; set; }
         public ICollection<ProjectIntegration>? ProjectIntegrations { get; set; }
         public ICollection<UserProject>? UserProjects { get; set; }
+        public ICollection<GitHubConfig>? RepositoryConfigs { get; set; }
 
     }
 }

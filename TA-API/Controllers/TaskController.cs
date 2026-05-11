@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.DotNet.Scaffolding.Shared.Messaging;
 using System.Security.Claims;
@@ -12,10 +13,13 @@ namespace TA_API.Controllers
     public class TaskController : ControllerBase
     {
         private readonly ITasksService _tasksService;
-        public TaskController(ITasksService tasksService)
+        private readonly ICodeGenerationService _codeGenerationService;
+        public TaskController(ITasksService tasksService, ICodeGenerationService codeGenerationService)
         {
             _tasksService = tasksService;
+            _codeGenerationService = codeGenerationService;
         }
+        [Authorize]
         [HttpGet("tasks")]
         public async Task<IActionResult> GetTasksAsync([FromQuery] TaskQuery query)
         {
@@ -114,6 +118,30 @@ namespace TA_API.Controllers
                 });
             }
 
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Something went wrong"
+                });
+            }
+        }
+
+        [HttpPost("generate-code")]
+        public async Task<IActionResult> GenerateCodeAsync([FromBody] CodeGenerationRequestDTO request)
+        {
+            try
+            {
+                var result = await _codeGenerationService.GenerateAsync(request.Description);
+                return Ok(result);
+            }
             catch (ArgumentException ex)
             {
                 return BadRequest(new
