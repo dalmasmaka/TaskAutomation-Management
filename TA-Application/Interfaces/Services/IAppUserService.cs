@@ -15,6 +15,8 @@ namespace TA_Application.Interfaces.Services
         Task<ApplicationUser> UpdateUserAsync(UserDTO userDTO);
         Task<ResponseDTO> ChangePasswordAsync(ChangePasswordDTO changePasswordDTO);
         Task<UserDTO> GetCurrentUser(string userId);
+        Task<UserGitHubDTO>GetUserGitHubInfo(string userId);
+        Task<UserGitHubDTO> SaveUserGitHubInfo(UserGitHubDTO userGitHubDTO);
         Task<ResponseDTO> ChangeUserRole(string userId, string roleId);
         Task<List<RolesDTO>> GetAllRoles(string userId);
         Task<ResponseDTO> ForgotPasswordAsync(ForgotPasswordRequestDTO request);

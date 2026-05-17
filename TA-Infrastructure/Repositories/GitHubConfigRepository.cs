@@ -31,5 +31,18 @@ namespace TA_Infrastructure.Repositories
                 .FirstOrDefaultAsync();
 
         }
+
+        public async Task<UserGitHubConfigDTO> GetUsersGitHubConfig(string userId)
+        {
+            return await _context.UserGitHubConfigs
+                .Where(c => c.UserId == userId)
+                .Select(c => new UserGitHubConfigDTO
+                {
+                    UserId = c.UserId,
+                    GitHubUsername = c.GitHubUsername,
+                    AccessToken = c.AccessToken
+                })
+                .FirstOrDefaultAsync();
+        }
     }
 }

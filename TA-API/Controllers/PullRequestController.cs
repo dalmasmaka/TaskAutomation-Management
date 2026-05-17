@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Humanizer;
+using Microsoft.AspNetCore.Mvc;
 using Octokit;
 using System.Security.Claims;
 using TA_Application.DTOs;
@@ -42,6 +43,10 @@ namespace TA_API.Controllers
         [HttpPost("create-pull-request")]
         public async Task<IActionResult> CreatePullRequest([FromBody] PullRequestCreationDTO pullRequestCreationDTO)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized("UserId claim missing");
+            pullRequestCreationDTO.UserId = userId;
             // Call the service method to create a pull request
             var result = await _pullRequestService.CreatePullRequestAsync(pullRequestCreationDTO);
             if (result == null)

@@ -1,9 +1,10 @@
-﻿using Octokit;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Octokit;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
 using TA_Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace TA_Application.Services
 {
@@ -12,39 +13,41 @@ namespace TA_Application.Services
         private readonly IGitHubService _gitHubService;
         private readonly IGitHubConfigRepository _gitHubConfigRepository;
         private readonly IPullRequestRepository _pullRequestRepository;
+        private readonly ILogger<PullRequestService> _logger;
 
         public PullRequestService(
             IGitHubService gitHubService,
             IGitHubConfigRepository gitHubConfigRepository,
-            IPullRequestRepository pullRequestRepository)
+            IPullRequestRepository pullRequestRepository,
+            ILogger<PullRequestService> logger
+            )
         {
             _gitHubService = gitHubService;
             _gitHubConfigRepository = gitHubConfigRepository;
             _pullRequestRepository = pullRequestRepository;
+            _logger = logger;
         }
 
         public async Task<PullRequestDTO> CreatePullRequestAsync(PullRequestCreationDTO dto)
         {
-            if(dto == null)
-                throw new ArgumentNullException(nameof(dto), "Pull request creation data cannot be null.");
-            try
-            {
-                var config = await _gitHubConfigRepository.GetByProjectId(dto.ProjectId);
+            ArgumentNullException.ThrowIfNull(dto);
 
-                if (config == null)
-                    throw new Exception("GitHub is not configured for this project.");
+            var config = await _gitHubConfigRepository.GetByProjectId(dto.ProjectId)
+                ?? throw new InvalidOperationException("GitHub is not configured for this project.");
 
-                var pr = await _gitHubService.CreatePullRequestAsync(dto, config);
+            var userConfig = await _gitHubConfigRepository.GetUsersGitHubConfig(dto.UserId)
+                ?? throw new InvalidOperationException("GitHub account is not configured for this user.");
 
-                if (pr == null) return null;
+            var pr = await _gitHubService.CreatePullRequestAsync(dto, config, userConfig);
 
-                await _pullRequestRepository.SavePullRequestAsync(pr);
+            if (pr == null)
+                throw new InvalidOperationException("Failed to create pull request.");
 
-                return pr;
-            }
-            catch (Exception ex) {
-                throw ex;
-            }
+            pr.UserId = dto.UserId;
+
+            await _pullRequestRepository.SavePullRequestAsync(pr);
+
+            return pr;
         }
 
         public async Task<PagedResult<PullRequestListDTO>> GetAllPRAsync(PRQuery query, string userId, string role, int companyId)
@@ -105,26 +108,36 @@ namespace TA_Application.Services
 
         public async Task<ReviewDTO> SubmitReviewAsync(ReviewRequestDTO dto)
         {
-            if (dto == null)
-                throw new ArgumentNullException(nameof(dto), "Pull request creation data cannot be null.");
+            // 1. Guard clause: Use the built-in throw helper
+            ArgumentNullException.ThrowIfNull(dto);
+
             try
             {
-                var config = await _gitHubConfigRepository.GetByProjectId(dto.ProjectId);
+                var config = await _gitHubConfigRepository.GetByProjectId(dto.ProjectId)
+                    ?? throw new InvalidOperationException($"GitHub configuration missing for ProjectId: {dto.ProjectId}");
 
-                if (config == null)
-                    throw new Exception("GitHub is not configured for this project.");
+                var review = await _gitHubService.SubmitReviewAsync(dto, config);
 
-                var review  = await _gitHubService.SubmitReviewAsync(dto, config);
+                if (review == null)
+                    return null;
 
-                if (review == null) return null;
+                var savedReview = await _pullRequestRepository.SaveReviewAsync(review);
+                if (savedReview != null)
+                {
+                    var updatedPr = await _pullRequestRepository.UpdatePrStatus(review.PRId, review.Decision);
 
-                await _pullRequestRepository.SaveReviewAsync(review);
+                    if (updatedPr == null)
+                    {
+                        throw new InvalidOperationException($"Failed to update PR status for PRId: {review.PRId}");
+                    }
+                }
+
                 return review;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.InnerException?.Message);
-                throw ex;
+                _logger.LogError(ex, "Error submitting review for PR ID: {PrId}", dto.PrID);
+                throw;
             }
         }
     }

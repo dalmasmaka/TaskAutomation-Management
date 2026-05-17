@@ -15,5 +15,7 @@ namespace TA_Application.Interfaces.Repositories
         IQueryable<PullRequestListDTO> GetAllPRsAsync(string userId, string role, int companyId);
         Task<List<ReviewDTO>> GetReviewsForPullRequestAsync(int pullRequestId);
         Task<PullRequestDTO> GetPullRequestById(int id);
+        Task<List<ReviewDTO>> GetWorkspaceReviews(int companyId, DateTime startDate);
+        Task<ResponseDTO?> UpdatePrStatus(int pRId, string decision);
     }
 }

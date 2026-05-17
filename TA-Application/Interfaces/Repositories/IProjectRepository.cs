@@ -11,6 +11,7 @@ namespace TA_Application.Interfaces.Repositories
         Task<CreateProjectDTO> SaveIntegrationAsync(CreateProjectDTO project);
         Task DeleteAsync(int id);
         Task<List<ProjectDTO>> GetAllAsync(int companyId, string userId);
+        Task<List<ProjectDTO>> GetAllByCompanyIdAsync(int companyId);
         Task<List<ProjectDTO>> GetProjectsAvailableToAssignToUser(int companyId, string userId);
         Task<List<UserDTO>> GetUsersAvailableToAssignToProjects(int companyId, int projectId);
         Task AssignUserToProjects(string userId, List<int> projectIds);

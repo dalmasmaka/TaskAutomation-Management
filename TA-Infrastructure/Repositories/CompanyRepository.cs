@@ -86,6 +86,7 @@ namespace TA_Infrastructure.Repositories
                     CompanyId = i.CompanyId,
                     InvitationCode = i.InvitationCode,
                     ExpirationDate = i.ExpirationDate,
+                    Role = i.Role,
 
                 })
                 .FirstOrDefaultAsync();
@@ -198,17 +199,20 @@ namespace TA_Infrastructure.Repositories
 
         public async Task<List<InvitationsDTO>> GetInvitations(int companyId)
         {
-            return await _context.WorkspaceInvitations
+            var invitations = await _context.WorkspaceInvitations
                 .Where(i => i.CompanyId == companyId)
                 .OrderByDescending(i => i.Id)
-                .Select(i => new InvitationsDTO
-                {
-                    Id = i.Id,
-                    InvitationCode = i.InvitationCode,
-                    CompanyId = i.CompanyId,
-                    ExpirationDate = i.ExpirationDate
-                })
-                .ToListAsync();
+                .ToListAsync(); // Data comes into memory here
+
+            return invitations.Select(i => new InvitationsDTO
+            {
+                Id = i.Id,
+                InvitationCode = i.InvitationCode,
+                CompanyId = i.CompanyId,
+                ExpirationDate = i.ExpirationDate,
+                Role = i.Role,                 // Set the Enum
+                StringRole = i.Role.ToString() // This works perfectly in memory
+            }).ToList();
         }
 
         public async Task<InvitationsDTO> GenerateCodeAsync(InvitationsDTO dto)
@@ -220,7 +224,8 @@ namespace TA_Infrastructure.Repositories
             {
                 CompanyId = dto.CompanyId,
                 InvitationCode = dto.InvitationCode,
-                ExpirationDate = dto.ExpirationDate
+                ExpirationDate = dto.ExpirationDate,
+                Role = dto.Role
             };
 
             _context.WorkspaceInvitations.Add(invitation);
@@ -230,7 +235,8 @@ namespace TA_Infrastructure.Repositories
             {
                 CompanyId = invitation.CompanyId,
                 InvitationCode = invitation.InvitationCode,
-                ExpirationDate = invitation.ExpirationDate
+                ExpirationDate = invitation.ExpirationDate,
+                Role = invitation.Role
             };
         }
 
@@ -254,6 +260,17 @@ namespace TA_Infrastructure.Repositories
                 company.IsDeleted = true;
                 await _context.SaveChangesAsync();
             }
+        }
+
+        public async Task<InvitationsDTO> GetInvitationByCode(string code)
+        {
+            return await _context.WorkspaceInvitations.Where(t=> t.InvitationCode == code)
+                .Select(i => new InvitationsDTO
+                {
+                    InvitationCode = i.InvitationCode,
+                    Role = i.Role,
+                    CompanyId = i.CompanyId
+                }).FirstOrDefaultAsync();
         }
     }
 }

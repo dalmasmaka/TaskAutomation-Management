@@ -1,7 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Octokit;
+using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Domain.Entities;
 using TA_Infrastructure.Persistence;
+using TA_Infrastructure.Persistence.Migrations;
 
 namespace TA_Infrastructure.Repositories
 {
@@ -103,6 +106,51 @@ namespace TA_Infrastructure.Repositories
             }
 
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<UserGitHubDTO> GetUserGitHubInfo(string userId)
+        {
+            return await _context.UserGitHubConfigs.Where(g => g.UserId == userId)
+                .Select(t => new UserGitHubDTO
+                {
+                    Id = t.Id,
+                    Username = t.GitHubUsername,
+                    AccessToken = t.AccessToken
+                }).FirstOrDefaultAsync();
+        }
+
+        public async Task<UserGitHubDTO> SaveUserGitHubInfo(UserGitHubDTO userGitHubDTO)
+        {
+            var existingUser = await _context.UserGitHubConfigs
+         .FirstOrDefaultAsync(u => u.Id == userGitHubDTO.Id);
+
+            if (existingUser != null)
+            {
+                existingUser.GitHubUsername = userGitHubDTO.Username;
+                existingUser.AccessToken = userGitHubDTO.AccessToken;
+                existingUser.UpdatedAt = DateTime.UtcNow;
+                existingUser.UpdatedById = userGitHubDTO.UserId;
+
+                _context.UserGitHubConfigs.Update(existingUser);
+                userGitHubDTO.Id = existingUser.Id;
+            }
+            else
+            {
+                var newUser = new TA_Domain.Entities.UserGitHubConfig
+                {
+                    GitHubUsername = userGitHubDTO.Username,
+                    AccessToken = userGitHubDTO.AccessToken,
+                    CreatedAt = DateTime.UtcNow,
+                    UserId = userGitHubDTO.UserId
+                };
+
+                await _context.UserGitHubConfigs.AddAsync(newUser);
+                userGitHubDTO.Id = newUser.Id;
+            }
+
+            await _context.SaveChangesAsync();
+            
+            return userGitHubDTO;
         }
     }
 }

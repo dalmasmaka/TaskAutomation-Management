@@ -21,5 +21,6 @@ namespace TA_Domain.Entities
         public Project? Project { get; set; }
         //nav props
         public ICollection<TaskMember> TaskMembers { get; set; } = new List<TaskMember>();
+        public ICollection<PullRequest>? PullRequests { get; set; }
     }
 }

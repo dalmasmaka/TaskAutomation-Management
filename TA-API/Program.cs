@@ -125,6 +125,8 @@ builder.Services.AddScoped<IGitHubConfigRepository, GitHubConfigRepository>();
 builder.Services.AddScoped<IPullRequestService, PullRequestService>();
 builder.Services.AddScoped<IPullRequestRepository, PullRequestRepository>();
 
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+
 builder.Services.AddScoped<IPasswordHasherService, PasswordHasherService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 

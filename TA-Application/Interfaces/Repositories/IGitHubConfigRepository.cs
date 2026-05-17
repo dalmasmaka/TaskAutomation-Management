@@ -8,5 +8,6 @@ namespace TA_Application.Interfaces.Repositories
     public interface IGitHubConfigRepository
     {
         Task<GitHubConfigDTO> GetByProjectId(int projectId);
+        Task<UserGitHubConfigDTO> GetUsersGitHubConfig(string UserId);
     }
 }

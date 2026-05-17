@@ -53,18 +53,19 @@ namespace TA_Infrastructure.Repositories
                 .OrderByDescending(i => i.TaskId)
                 .AsQueryable();
 
-            if (role == "Owner")
-            {
-                tasksQuery = tasksQuery
-                    .Where(x => x.Project!.CompanyId == companyId);
-            }
-            else if (role == "Developer" || role == "developer")
+           
+            if (role == "Developer" || role == "developer")
             {
                 tasksQuery = tasksQuery
                     .Where(x => x.TaskMembers
                         .Any(tm => tm.UserId == userId && !tm.IsDeleted)
                         && x.Project!.UserProjects!
                             .Any(up => up.UserId == userId));
+            }
+            else
+            {
+                tasksQuery = tasksQuery
+                    .Where(x => x.Project!.CompanyId == companyId);
             }
 
             var dtoQuery = tasksQuery.Select(t => new TaskDTO
@@ -90,7 +91,21 @@ namespace TA_Infrastructure.Repositories
 
             return dtoQuery;
         }
-
+        public async Task<List<UserWorkloadDTO>> GetCompanyMembersTasks(int companyId, DateTime startDate)
+        {
+            var userTasks =  await _context.Users
+                .Where(u => u.CompanyId == companyId && !u.isDeleted)
+                .Select(u => new UserWorkloadDTO
+                {
+                    FullName = u.FullName,
+                    TaskCount = u.TaskMembers
+                     .Where(u => !u.IsDeleted && u.CreatedAt >= startDate)
+                        .Select(tm => tm.Task)
+                        .Count(t => t != null && !t.IsDeleted)
+                })
+                .ToListAsync();
+            return userTasks;
+        }
 
         public IQueryable<TaskDTO> GetProjectTasks(int projectId)
         {

@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using TA_Domain.Enums;
 
 namespace TA_Application.DTOs
 {
@@ -33,5 +34,9 @@ namespace TA_Application.DTOs
     {
         public List<GeneratedFileDTO> Files { get; set; }
     }
-
+    public class GenerateInvitationDTO
+    {
+        public DateTime ExpiryDate { get; set; }
+        public CompanyRole Role { get; set; }
+    }
 }
