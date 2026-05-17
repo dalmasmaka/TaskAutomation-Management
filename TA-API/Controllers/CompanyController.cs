@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Services;
+using TA_Domain.Enums;
 
 namespace TA_API.Controllers
 {
@@ -64,14 +65,14 @@ namespace TA_API.Controllers
             var result = await _companyService.GetInvitations(companyId);
             return Ok(result);
         }
-        [Authorize(Roles = "Owner")]
+        //[Authorize(Roles = "Owner")]
         [HttpPost("generateCode")]
-        public async Task<IActionResult> GenerateCode([FromBody] DateTime expiryDate) {
+        public async Task<IActionResult> GenerateCode([FromBody] GenerateInvitationDTO dto) {
 
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
             var companyId = int.Parse(companyIdClaim);
-            var result = await _companyService.GenerateCodeAsync(companyId, expiryDate);
+            var result = await _companyService.GenerateCodeAsync(companyId, dto.ExpiryDate, dto.Role);
             return Ok(result);  
         }
         [Authorize(Roles = "Owner")]

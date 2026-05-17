@@ -1,11 +1,13 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using Octokit;
+using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml.Linq;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
-using TA_Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using TA_Domain.Entities;
+using TA_Infrastructure.Persistence;
 
 namespace TA_Infrastructure.Repositories
 {
@@ -24,17 +26,17 @@ namespace TA_Infrastructure.Repositories
                 .OrderByDescending(i => i.Id)
                 .AsQueryable();
 
-            if (role == "Owner")
-            {
-                prs = prs.Where(x => x.Task.Project.CompanyId == companyId);
-            } 
-            else if (role == "Developer" || role == "developer")
+           
+            if (role == "Developer" || role == "developer")
             {
                 prs = prs.Where(x => x.CreatedById == userId &&
                     x.Task.TaskMembers.Any(m => m.UserId == userId && !m.IsDeleted)
                 );
             }
-
+            else
+            {
+                prs = prs.Where(x => x.Task.Project.CompanyId == companyId);
+            }
             var dto = prs.Select(x => new PullRequestListDTO
             {
                 TaskId = x.TaskId,
@@ -85,20 +87,67 @@ namespace TA_Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<ReviewDTO>> GetWorkspaceReviews(int companyId, DateTime startDate)
+        {
+            var allReviews = await (from p in _context.Projects
+                                    where p.CompanyId == companyId && !p.IsDeleted
+                                    from t in p.Tasks
+                                    // Explicit join
+                                    from r in t.PullRequests
+                                    join u in _context.Users on r.CreatedById equals u.Id
+                                    where r.CreatedAt >= startDate
+                                    select new ReviewDTO
+                                    {
+                                        Developer = u.FullName,
+                                        DeveloperId = u.Id,
+                                        Decision = r.Status,
+                                        ReviewDate = r.CreatedAt
+                                    }).ToListAsync();
+
+            return allReviews;
+
+        }
+
         public async Task<PullRequestDTO> SavePullRequestAsync(PullRequestDTO request)
         {
-            var entity = new TA_Domain.Entities.PullRequest
-            {
-                ExternalId = request.Id,
-                TaskId = request.TaskId,
-                BranchName = request.BranchName,
-                PRUrl = request.PRUrl,
-                PRName = request.PRName,
-                PRDescription = request.PRDescription,
-                Status = request.Status
-            };
+            ArgumentNullException.ThrowIfNull(request);
 
-            _context.PullRequests.Add(entity);
+            var review = await _context.Reviews
+                .Include(x => x.PullRequest)
+                .FirstOrDefaultAsync(x => x.PullRequest.TaskId == request.TaskId);
+
+            TA_Domain.Entities.PullRequest entity;
+
+            if (review == null || review.PullRequest == null)
+            {
+                entity = new TA_Domain.Entities.PullRequest
+                {
+                    ExternalId = request.Id,
+                    TaskId = request.TaskId,
+                    BranchName = request.BranchName,
+                    PRUrl = request.PRUrl,
+                    PRName = request.PRName,
+                    PRDescription = request.PRDescription,
+                    Status = request.Status,
+                    CreatedById = request.UserId
+                };
+
+                await _context.PullRequests.AddAsync(entity);
+            }
+            else
+            {
+                entity = review.PullRequest;
+
+                entity.ExternalId = request.Id;
+                entity.TaskId = request.TaskId;
+                entity.BranchName = request.BranchName;
+                entity.PRUrl = request.PRUrl;
+                entity.PRName = request.PRName;
+                entity.PRDescription = request.PRDescription;
+                entity.Status = request.Status;
+                entity.UpdatedById = request.UserId;
+            }
+
             await _context.SaveChangesAsync();
 
             return new PullRequestDTO
@@ -109,49 +158,82 @@ namespace TA_Infrastructure.Repositories
                 PRUrl = entity.PRUrl,
                 PRName = entity.PRName,
                 PRDescription = entity.PRDescription,
-                Status = entity.Status
+                Status = entity.Status,
+                UserId = entity.CreatedById
             };
         }
-
         public async Task<ReviewDTO> SaveReviewAsync(ReviewDTO review)
         {
-            var existing = await _context.Reviews
-               .FirstOrDefaultAsync(pi => pi.PullRequestId == review.PRId);
-
-            if (existing != null)
+            var newReview = new Review
             {
-                // Update existing record
-                existing.Comment = review.Comment;
-                existing.Decision = review.Decision;
-                existing.UpdatedAt = DateTime.Now;
-                existing.UpdatedById = review.UserId;
+                PullRequestId = review.PRId,
+                Comment = review.Comment,
+                Decision = review.Decision,
+                CreatedById = review.UserId,
+                CreatedAt = DateTime.Now,
 
-                await _context.SaveChangesAsync();
+            };
 
-                review.ReviewId = existing.ReviewId;
-                return review;
-            }
-            else
-            {
-                // Create new record
-                var newReview = new Review
-                {
-                    PullRequestId = review.PRId,
-                    Comment = review.Comment,
-                    Decision = review.Decision,
-                    CreatedById = review.UserId,
-                    CreatedAt = DateTime.Now,
+            await _context.Reviews.AddAsync(newReview);
+            await _context.SaveChangesAsync();
+
+            review.ReviewId = newReview.ReviewId;
+            return review;
+            //var existing = await _context.Reviews
+            //   .FirstOrDefaultAsync(pi => pi.PullRequestId == review.PRId);
+
+            //if (existing != null)
+            //{
+            //    // Update existing record
+            //    existing.Comment = review.Comment;
+            //    existing.Decision = review.Decision;
+            //    existing.UpdatedAt = DateTime.Now;
+            //    existing.UpdatedById = review.UserId;
+
+            //    await _context.SaveChangesAsync();
+
+            //    review.ReviewId = existing.ReviewId;
+            //    return review;
+            //}
+            //else
+            //{
+            //    // Create new record
+            //    var newReview = new Review
+            //    {
+            //        PullRequestId = review.PRId,
+            //        Comment = review.Comment,
+            //        Decision = review.Decision,
+            //        CreatedById = review.UserId,
+            //        CreatedAt = DateTime.Now,
                    
-                };
+            //    };
 
-                await _context.Reviews.AddAsync(newReview);
-                await _context.SaveChangesAsync();
+            //    await _context.Reviews.AddAsync(newReview);
+            //    await _context.SaveChangesAsync();
 
-                review.ReviewId = newReview.ReviewId;
-                return review;
-            }
+            //    review.ReviewId = newReview.ReviewId;
+            //    return review;
+            //}
         }
-         
-        
+
+        public async Task<ResponseDTO?> UpdatePrStatus(int pRId, string decision)
+        {
+
+            var existing = await _context.PullRequests
+        .FirstOrDefaultAsync(t => t.Id == pRId);
+
+            if (existing == null)
+                throw new KeyNotFoundException($"Pull request with ID {pRId} was not found.");
+
+            existing.Status = decision;
+
+            await _context.SaveChangesAsync();
+
+            return new ResponseDTO
+            {
+                Success = true,
+                Message = "Pull request status updated successfully."
+            };
+        }
     }
 }

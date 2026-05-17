@@ -8,7 +8,7 @@ namespace TA_Application.Interfaces.Services
 {
     public interface IGitHubService
     {
-        Task<PullRequestDTO> CreatePullRequestAsync(PullRequestCreationDTO dto, GitHubConfigDTO config);
+        Task<PullRequestDTO> CreatePullRequestAsync(PullRequestCreationDTO dto, GitHubConfigDTO config, UserGitHubConfigDTO userConfig);
         Task<ReviewDTO> SubmitReviewAsync(ReviewRequestDTO dto, GitHubConfigDTO config);
     }
 }

@@ -11,6 +11,7 @@
         public string? PRDescription { get; set; }
         public string? Status { get; set; }
         public long ExternalId { get; set; }
+        public string UserId { get; set; }
 
     }
 
@@ -32,6 +33,7 @@
     {
         public int TaskId { get; set; }
         public int ProjectId { get; set; }
+        public string UserId { get; set; }
         public string RootFolder { get; set; }
         public List<GeneratedFileDTO> Files { get; set; }
     }

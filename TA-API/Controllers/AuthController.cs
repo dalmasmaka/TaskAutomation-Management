@@ -61,6 +61,29 @@ namespace TA_API.Controllers
 
             return Ok(user);
         }
+        [HttpGet("githubInfo")]
+        public async Task<IActionResult> GetGitHubInfo()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var user = await _appService.GetUserGitHubInfo(userId);
+
+            return Ok(user);
+        }
+        [HttpPost("saveGitHubInfo")]
+        public async Task<IActionResult> SaveGitHubInfo(UserGitHubDTO dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+            dto.UserId = userId;
+            var result = await _appService.SaveUserGitHubInfo(dto);
+            return Ok(result);
+        }
         [HttpPut("changePassword")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDTO changePasswordDTO)
         {

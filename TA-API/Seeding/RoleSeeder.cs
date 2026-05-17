@@ -6,7 +6,7 @@ namespace TA_API.Seeding
     {
         public static async Task SeedAsync(RoleManager<IdentityRole> roleManager)
         {
-            string[] roles = { "Admin", "TeamLeader", "Developer", "Owner" };
+            string[] roles = { "Manager", "Developer", "Owner" };
 
             foreach (var role in roles)
             {

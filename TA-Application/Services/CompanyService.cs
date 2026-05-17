@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
+using TA_Domain.Enums;
 
 namespace TA_Application.Services
 {
@@ -120,6 +121,20 @@ namespace TA_Application.Services
                 throw new ArgumentException(ex.Message, nameof(companyId));
             }
         }
+        public async Task<InvitationsDTO> GetInvitationByCode(string code)
+        {
+            try
+            {
+                var result = await _companyService.GetInvitationByCode(code);
+                return result;
+                
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching company invitations");
+                throw;
+            }
+        }
 
         public async Task<List<InvitationsDTO>> GetInvitations(int companyId)
         {
@@ -134,7 +149,9 @@ namespace TA_Application.Services
                     ExpirationDate = inv.ExpirationDate,
                     ExpirationStatus = inv.ExpirationDate > DateTime.UtcNow
                         ? "Active"
-                        : "Expired"
+                        : "Expired",
+                    Role = inv.Role,
+                    StringRole = inv.StringRole
                 }).ToList();
             }
             catch (Exception ex)
@@ -154,7 +171,7 @@ namespace TA_Application.Services
             return new string(data.Select(b => chars[b % chars.Length]).ToArray());
         }
 
-        public async Task<InvitationsDTO> GenerateCodeAsync(int companyId, DateTime expiryDate)
+        public async Task<InvitationsDTO> GenerateCodeAsync(int companyId, DateTime expiryDate, CompanyRole role)
         {
             try
             {
@@ -164,6 +181,7 @@ namespace TA_Application.Services
                     CompanyId = companyId,
                     ExpirationDate = expiryDate,
                     InvitationCode = generatedCode,
+                    Role = role
                     
                 };
                 var code =  await _companyService.GenerateCodeAsync(dto);
@@ -174,7 +192,8 @@ namespace TA_Application.Services
                     InvitationCode = code.InvitationCode,
                     ExpirationStatus = code.ExpirationDate > DateTime.UtcNow
                         ? "Active"
-                        : "Expired"
+                        : "Expired",
+                    Role = code.Role
                 };
                 return updatedList;
             }

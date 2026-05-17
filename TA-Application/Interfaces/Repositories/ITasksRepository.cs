@@ -17,5 +17,6 @@ namespace TA_Application.Interfaces.Repositories
         Task<TaskMembersDTO?> SaveTaskMembers(TaskMembersDTO dto);
         Task RemoveMember(string id, int taskId);
         Task<TaskDTO> GetTaskByExternalIdAsync(string externalId);
+        Task<List<UserWorkloadDTO>> GetCompanyMembersTasks(int companyId, DateTime startDate);
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
+using Octokit;
 using System.Text;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
@@ -65,6 +66,7 @@ namespace TA_Application.Services
                 {
                     return new ResponseDTO { Success = false, Message = existingUser.Message };
                 }
+                InvitationsDTO? invitationCode = null;
                 var user = new ApplicationUser
                 {
                     FullName = userDTO.FullName,
@@ -72,34 +74,53 @@ namespace TA_Application.Services
                     UserName = userDTO.UserName,
                     PasswordHash = _hasher.Hash(userDTO.Password),
                 };
+                // Invitation logic
                 if (!string.IsNullOrEmpty(userDTO.InvitationCode))
                 {
                     var checkInvitation = await _appService.CheckInvitationCode(userDTO.InvitationCode);
+
                     if (checkInvitation.Success == false)
-                    {
-                        return new ResponseDTO { Success = false, Message = checkInvitation.Message };
-                    }
-                    var companyId =  _companyService.GetCompanyByInvitationCode(userDTO.InvitationCode);
-                    if (companyId <= 0)
                     {
                         return new ResponseDTO
                         {
                             Success = false,
-                            Message = "Invalid invitation code."
+                            Message = checkInvitation.Message
                         };
                     }
 
-                    user.CompanyId = companyId;
+                    invitationCode = await _companyService
+                        .GetInvitationsByInvitationCode(userDTO.InvitationCode);
 
+                    if (invitationCode.CompanyId <= 0)
+                    {
+                        return new ResponseDTO
+                        {
+                            Success = false,
+                            Message = "Company not found."
+                        };
+                    }
+
+                    user.CompanyId = invitationCode.CompanyId;
                 }
+
                 await _repo.AddAsync(user);
 
-                var roleResult = await _userManager.AddToRoleAsync(user, userDTO.Role);
+                // Decide role
+                string roleName = invitationCode != null
+                    ? invitationCode.Role.ToString()
+                    : userDTO.Role;
+
+                var roleResult = await _userManager.AddToRoleAsync(user, roleName);
 
                 if (!roleResult.Succeeded)
                 {
-                    return new ResponseDTO { Success = false, Message = "User created, but role assignment failed." };
+                    return new ResponseDTO
+                    {
+                        Success = false,
+                        Message = "User created, but role assignment failed."
+                    };
                 }
+
                 if (userDTO.Role == "owner")
                 {
                     var workspaceResult = await _companyService.AddWorkspace(userDTO.WorkspaceName!, user.Id);
@@ -108,7 +129,7 @@ namespace TA_Application.Services
                     await _repo.UpdateUser(user);
                 }
               
-                var token = _jwtService.GenerateToken(user, userDTO.Role);
+                var token = _jwtService.GenerateToken(user, roleName);
 
                 return new ResponseDTO { Success = true, Message = token };
             }
@@ -461,6 +482,36 @@ namespace TA_Application.Services
                     Success = false,
                     Message = "An error occurred while processing your request."
                 };
+            }
+        }
+
+        public async Task<UserGitHubDTO> GetUserGitHubInfo(string userId)
+        {
+            ArgumentNullException.ThrowIfNull(userId);
+            try
+            {
+                var info = await _repo.GetUserGitHubInfo(userId);
+                return info;
+               
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error fetching user!");
+                throw;
+            }
+        }
+
+        public async Task<UserGitHubDTO> SaveUserGitHubInfo(UserGitHubDTO userGitHubDTO)
+        {
+            ArgumentNullException.ThrowIfNull(userGitHubDTO);
+            try
+            {
+                var result = await _repo.SaveUserGitHubInfo(userGitHubDTO);
+                return result; 
+            }
+            catch (Exception ex) {
+                _logger.LogError(ex, "Unexpected error saving user github info!");
+                throw;
             }
         }
     }

@@ -16,6 +16,7 @@ namespace TA_Application.Interfaces.Repositories
         Task<InvitationsDTO> GenerateCodeAsync(InvitationsDTO dto);
         Task DeleteConfigAsync(int id);
         Task DeleteCompanyAsync(int companyId);
+        Task<InvitationsDTO> GetInvitationByCode(string code);
 
     }
 }

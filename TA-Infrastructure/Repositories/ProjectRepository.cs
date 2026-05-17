@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualBasic;
+using Octokit;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -41,7 +42,7 @@ namespace TA_Infrastructure.Repositories
             else
             {
                 // Create new record
-                var newProject = new Project
+                var newProject = new TA_Domain.Entities.Project
                 {
                     Name = project.Name!,
                     CompanyId = project.CompanyId,
@@ -320,6 +321,19 @@ namespace TA_Infrastructure.Repositories
             var project = await _context.GitHubConfigs.FindAsync(projectId);
             if (project == null) return null;
             return new RepoDTO { RepoUrl = project.RepoName, RepoOwner = project.RepoOwner };
+        }
+
+        public async Task<List<ProjectDTO>> GetAllByCompanyIdAsync(int companyId)
+        {
+            return await _context.Projects
+               .Where(p => !p.IsDeleted && p.CompanyId == companyId)
+               .OrderByDescending(p => p.ProjectId)
+               .Select(p => new ProjectDTO
+               {
+                   ProjectId = p.ProjectId,
+                   Name = p.Name,
+               })
+               .ToListAsync();
         }
     }
 }
