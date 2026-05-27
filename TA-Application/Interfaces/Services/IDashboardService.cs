@@ -7,8 +7,8 @@ namespace TA_Application.Interfaces.Services
 {
     public interface IDashboardService
     {
-        Task<DashboardInsightsDTO> GetDashboardInsightsAsync(string userID, string role, int companyID);
-        Task<WorkloadInsightsDTO> GetWorkloadInsightsAsync(TimeRange range, int companyID);
-        Task<PREngagementDTO> GetPREngagementAsync(int companyId, string userId, string userRole, TimeRange range);
+        Task<DashboardInsightsDTO> GetDashboardInsightsAsync(string userID, string role, int companyID, int? teamId, CancellationToken ct);
+        Task<WorkloadInsightsDTO> GetWorkloadInsightsAsync(TimeRange range, int companyID, int? teamId, CancellationToken ct);
+        Task<PREngagementDTO> GetPREngagementAsync(int companyId, string userId, string userRole, TimeRange range, int? teamId, CancellationToken ct);
     }
 }

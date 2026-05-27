@@ -1,8 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Domain.Entities;
 using TA_Infrastructure.Persistence;
@@ -16,7 +12,7 @@ namespace TA_Infrastructure.Repositories
         {
             _context = context;
         }   
-        public async System.Threading.Tasks.Task SaveLogAsync(ProjectWebhookDTO dto)
+        public async System.Threading.Tasks.Task SaveLogAsync(ProjectWebhook dto)
         {
             // 1. Check if this specific webhook already exists for this project/provider
             var existingWebhook = await _context.ProjectWebhooks

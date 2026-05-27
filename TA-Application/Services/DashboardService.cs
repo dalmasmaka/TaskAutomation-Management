@@ -1,9 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Octokit;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
@@ -17,13 +13,15 @@ namespace TA_Application.Services
         private readonly IProjectRepository _projectRepository;
         private readonly ITasksRepository _tasksRepository;
         private readonly IPullRequestRepository _pullRequestRepository;
-        public DashboardService(ILogger<DashboardService> logger, ICompanyRepository companyRepository, IProjectRepository projectRepository, IPullRequestRepository pullRequestRepository, ITasksRepository tasksRepository)
+        private readonly ITeamRepository _teamRepository;
+        public DashboardService(ILogger<DashboardService> logger, ICompanyRepository companyRepository, IProjectRepository projectRepository, IPullRequestRepository pullRequestRepository, ITasksRepository tasksRepository, ITeamRepository teamRepository)
         {
             _logger = logger;
             _companyRepository = companyRepository;
             _projectRepository = projectRepository;
             _pullRequestRepository = pullRequestRepository;
             _tasksRepository = tasksRepository;
+            _teamRepository = teamRepository;
         }
         private static InsightItemDTO BuildInsight<T>(IEnumerable<T> source, Func<T, string> groupSelector)
         {
@@ -51,7 +49,7 @@ namespace TA_Application.Services
                     .ToList()
             };
         }
-        public async Task<DashboardInsightsDTO> GetDashboardInsightsAsync(string userID, string role, int companyID)
+        public async Task<DashboardInsightsDTO> GetDashboardInsightsAsync(string userID, string role, int companyID, int? teamId, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(userID))
                 throw new ArgumentNullException(nameof(userID));
@@ -64,19 +62,19 @@ namespace TA_Application.Services
 
             try
             {
-                var team = await _companyRepository.GetTeamOfCompany(companyID);
+                var team = await _teamRepository.GetTeamMembersAsync(companyID, teamId, ct);
 
-                var projects = await _projectRepository.GetAllAsync(companyID, userID);
-
-                var tasks = _tasksRepository.GetAllTasks(userID, role, companyID);
-
-                var prs = _pullRequestRepository.GetAllPRsAsync(userID, role, companyID);
+                var projects = await _projectRepository.GetProjectsForInsights(companyID, teamId, ct);
+                var projectIds = projects.Select(p => p.ProjectId).ToList();
+                var tasks = await _tasksRepository.GetAllTasksForInsights(projectIds, userID, role, ct); 
+                var taskIds = tasks.Select(p => p.TaskId).ToList();
+                var prs = await _pullRequestRepository.GetAllPRsForInsights(taskIds, userID, role, ct);
 
                 return new DashboardInsightsDTO
                 {
                     Projects = BuildInsight(
                         projects,
-                        p => p.IsAssigned.ToString()
+                        p => p.UserProjects?.Any(up => up.UserId == userID && !up.IsDeleted) == true ? "Assigned" : "Unassigned"
                     ),
 
                     Tasks = BuildInsight(
@@ -91,7 +89,7 @@ namespace TA_Application.Services
 
                     Members = BuildInsight(
                         team,
-                        m => m.Role
+                        m => m.RoleName
                     )
                 };
             }
@@ -106,7 +104,9 @@ namespace TA_Application.Services
            int companyId,
            string userId,
            string userRole,
-           TimeRange range)
+           TimeRange range,
+           int? teamId,
+           CancellationToken ct)
         {
             DateTime startDate = range switch
             {
@@ -117,19 +117,19 @@ namespace TA_Application.Services
             };
 
             var workspaceData = await _pullRequestRepository
-                .GetWorkspaceReviews(companyId, startDate);
-
+                .GetWorkspacePullRequests(companyId, startDate, teamId, ct);
+            
             if (!workspaceData.Any())
                 return new PREngagementDTO();
 
             var statsData = userRole == "Developer"
-                ? workspaceData.Where(x => x.DeveloperId == userId).ToList()
+                ? workspaceData.Where(x => x.CreatedById == userId).ToList()
                 : workspaceData;
 
             int total = statsData.Count;
 
             var decisionStats = statsData
-                .GroupBy(x => x.Decision)
+                .GroupBy(x => x.Status)
                 .ToDictionary(g => g.Key, g => g.Count());
 
             int approved = decisionStats.GetValueOrDefault("Approved");
@@ -146,8 +146,8 @@ namespace TA_Application.Services
                     : Math.Round((double)approved / total * 100, 1),
 
                 TopPerformers = workspaceData
-                    .Where(x => x.Decision == "Approved")
-                    .GroupBy(x => x.Developer)
+                    .Where(x => x.Status == "Approved")
+                    .GroupBy(x => x.CreatedBy.FullName)
                     .Select(g => new UserPRSuccessDTO
                     {
                         FullName = g.Key,
@@ -158,8 +158,7 @@ namespace TA_Application.Services
                     .ToList()
             };
         }
-
-        public async Task<WorkloadInsightsDTO> GetWorkloadInsightsAsync(TimeRange range, int companyId)
+        public async Task<WorkloadInsightsDTO> GetWorkloadInsightsAsync(TimeRange range, int companyId, int? teamId, CancellationToken ct)
         {
             DateTime startDate = range switch
             {
@@ -169,31 +168,40 @@ namespace TA_Application.Services
                 _ => DateTime.UtcNow.AddDays(-7)
             };
 
-            var userTasksList = await _tasksRepository.GetCompanyMembersTasks(companyId, startDate);
+            var userTasksList = await _tasksRepository
+                .GetCompanyMembersTasks(companyId, startDate, teamId, ct);
 
-            int totalTasksInRange = userTasksList.Sum(x => x.TaskCount);
-            foreach (var stat in userTasksList)
+            var mapped = userTasksList
+                .GroupBy(tm => tm.UserId)
+                .Select(g => new UserWorkloadDTO
+                {
+                    FullName = g.FirstOrDefault()?.User?.FullName ?? "Unknown",
+                    TaskCount = g.Count()
+                })
+                .ToList();
+
+            int totalTasksInRange = mapped.Sum(x => x.TaskCount);
+
+            foreach (var stat in mapped)
             {
-                double rawPercentage = totalTasksInRange > 0
-              ? (double)stat.TaskCount / totalTasksInRange * 100
-              : 0;
-
-                stat.LoadPercentage = Math.Round(rawPercentage, 1);
+                stat.LoadPercentage = totalTasksInRange > 0
+                    ? Math.Round((double)stat.TaskCount / totalTasksInRange * 100, 1)
+                    : 0;
             }
-            // Calculate the mathematical average load per person
-            double averageLoad = userTasksList.Average(x => x.LoadPercentage);
+
+            double averageLoad = mapped.Count > 0
+                ? mapped.Average(x => x.LoadPercentage)
+                : 0;
 
             return new WorkloadInsightsDTO
             {
-                // Users doing more than the average "fair share"
-                PeakDistribution = userTasksList
+                PeakDistribution = mapped
                     .Where(x => x.LoadPercentage > averageLoad && x.TaskCount > 0)
                     .OrderByDescending(x => x.LoadPercentage)
-                      .Take(5)
+                    .Take(5)
                     .ToList(),
 
-                // Users doing less than the average (or nothing at all)
-                AvailableBandwidth = userTasksList
+                AvailableBandwidth = mapped
                     .Where(x => x.LoadPercentage <= averageLoad)
                     .OrderBy(x => x.LoadPercentage)
                     .Take(5)

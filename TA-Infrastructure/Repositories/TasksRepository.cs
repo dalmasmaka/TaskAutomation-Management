@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Domain.Entities;
 using TA_Infrastructure.Persistence;
@@ -14,208 +13,164 @@ namespace TA_Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<TaskDTO> CreateTaskAsync(TaskDTO dto)
+        public async Task<TA_Domain.Entities.Task> CreateTaskAsync(TA_Domain.Entities.Task entity, CancellationToken ct)
         {
-            var newTask = new TA_Domain.Entities.Task
-            {
-                Title = dto.Title,
-                ExternalId = dto.ExternalId,
-                Description = dto.Description,
-                ImportStatus = dto.Status,
-                Status = dto.Status,
-                Priority = dto.Priority,
-                ProjectId = dto.ProjectId,
-                IsDeleted = false,
-                CreatedAt = DateTime.UtcNow
-
-            };
-            _context.Tasks.Add(newTask);
+            _context.Tasks.Add(entity);
             await _context.SaveChangesAsync();
-
-            dto.TaskId = newTask.TaskId;
-            return dto;
+            return entity;
         }
 
-        public async System.Threading.Tasks.Task DeleteAsync(int id)
+        public async Task<bool> DeleteAsync(int id, CancellationToken ct)
         {
-            var existing = await GetTaskById(id);
-            if (existing != null)
+            var existing = await GetTaskById(id, ct);
+            if (existing == null)
             {
-                existing.isDeleted = true;
+                return false;
+              
             }
+            existing.IsDeleted = true;
             await _context.SaveChangesAsync();
+            return true;
         }
 
-        public IQueryable<TaskDTO> GetAllTasks(string userId, string role, int companyId)
+        public IQueryable<TA_Domain.Entities.Task> GetAllTasks( string userId, string role, int companyId)
         {
-            var tasksQuery = _context.Tasks
-                .Where(t => !t.IsDeleted)
-                .OrderByDescending(i => i.TaskId)
+            var isDeveloper = role.Equals("Developer", StringComparison.OrdinalIgnoreCase);
+
+            var query = _context.Tasks
+                .Where(t =>
+                    !t.IsDeleted &&
+                    t.Project != null &&
+                    t.Project.CompanyId == companyId);
+
+            if (isDeveloper)
+            {
+                query = query.Where(x =>
+                    x.TaskMembers.Any(tm =>
+                        tm.UserId == userId && !tm.IsDeleted)
+                    &&
+                    x.Project!.UserProjects.Any(up =>
+                        up.UserId == userId));
+            }
+
+            return query.OrderByDescending(t => t.TaskId);
+        }
+        public async Task<List<TA_Domain.Entities.Task>> GetAllTasksForInsights(List<int> projectIds, string userId, string role, CancellationToken ct)
+        {
+            var query = _context.Tasks
+                .Where(t =>
+                    !t.IsDeleted &&
+                    projectIds.Contains(t.ProjectId))
                 .AsQueryable();
 
-           
-            if (role == "Developer" || role == "developer")
+            if (role.Equals("Developer", StringComparison.OrdinalIgnoreCase))
             {
-                tasksQuery = tasksQuery
-                    .Where(x => x.TaskMembers
-                        .Any(tm => tm.UserId == userId && !tm.IsDeleted)
-                        && x.Project!.UserProjects!
-                            .Any(up => up.UserId == userId));
-            }
-            else
-            {
-                tasksQuery = tasksQuery
-                    .Where(x => x.Project!.CompanyId == companyId);
+                query = query.Where(x =>
+                    x.TaskMembers.Any(tm =>
+                        tm.UserId == userId &&
+                        !tm.IsDeleted)
+                    &&
+                    x.Project != null &&
+                    x.Project.UserProjects != null &&
+                    x.Project.UserProjects.Any(up =>
+                        up.UserId == userId));
             }
 
-            var dtoQuery = tasksQuery.Select(t => new TaskDTO
+            return await query.ToListAsync(ct);
+        }
+        public async Task<List<TaskMember>> GetCompanyMembersTasks(int companyId, DateTime startDate, int? teamId, CancellationToken ct)
+        {
+            var query = _context.TaskMembers
+                .Where(tm =>
+                    !tm.IsDeleted &&
+                    tm.CreatedAt >= startDate &&
+                    tm.User != null &&
+                    tm.User.CompanyId == companyId &&
+                    !tm.User.isDeleted &&
+                    tm.Task != null &&
+                    !tm.Task.IsDeleted &&
+                    tm.Task.Project != null &&
+                    tm.Task.Project.CompanyId == companyId);
+
+            if (teamId.HasValue)
             {
-                TaskId = t.TaskId,
-                Title = t.Title,
-                Description = t.Description,
-                Priority = t.Priority,
-                Status = t.Status,
-                ProjectId = t.ProjectId,
-                ProjectName = t.Project != null ? t.Project.Name: null,
-                CompanyId = t.Project != null ? t.Project.CompanyId : null,
-                Assigners = t.TaskMembers
-                    .Where(tm => !tm.IsDeleted)
-                    .Select(tm => new UserDTO
-                    {
-                        Id = tm.User != null ? tm.User.Id : null,
-                        FullName = tm.User != null ? tm.User.FullName : null,
-                        Email = tm.User != null ? tm.User.Email : null,
-                    })
-                    .ToList()
-            });
+                query = query.Where(tm =>
+                    tm.Task.Project.ProjectTeams
+                        .Any(pt => pt.TeamId == teamId.Value));
+            }
 
-            return dtoQuery;
-        }
-        public async Task<List<UserWorkloadDTO>> GetCompanyMembersTasks(int companyId, DateTime startDate)
-        {
-            var userTasks =  await _context.Users
-                .Where(u => u.CompanyId == companyId && !u.isDeleted)
-                .Select(u => new UserWorkloadDTO
-                {
-                    FullName = u.FullName,
-                    TaskCount = u.TaskMembers
-                     .Where(u => !u.IsDeleted && u.CreatedAt >= startDate)
-                        .Select(tm => tm.Task)
-                        .Count(t => t != null && !t.IsDeleted)
-                })
-                .ToListAsync();
-            return userTasks;
+            return await query
+                .Include(tm => tm.User)
+                .Include(tm => tm.Task)
+                .ToListAsync(ct);
         }
 
-        public IQueryable<TaskDTO> GetProjectTasks(int projectId)
-        {
-            var dtoQuery = _context.Tasks
-                .Where(t => t.ProjectId == projectId && !t.IsDeleted)
-                .Select(s => new TaskDTO
-                {
-                    ProjectId = s.ProjectId,
-                    Title = s.Title,
-                    Description = s.Description,
-                    Status = s.Status
-                });
-
-            return dtoQuery;
-        }
-
-        public async Task<TaskDTO> GetTaskByExternalIdAsync(string externalId)
+        public async Task<TA_Domain.Entities.Task> GetTaskByExternalIdAsync(string externalId, CancellationToken ct)
         {
             return await _context.Tasks
                 .Where(t => t.ExternalId == externalId && !t.IsDeleted)
-                .Select(t => new TaskDTO
-                {
-                    TaskId = t.TaskId,
-                    Title = t.Title,
-                    Description = t.Description,
-                    Status = t.Status,
-                    Priority = t.Priority,
-                    ProjectName = t.Project != null ? t.Project.Name : null,
-                    isDeleted = t.IsDeleted,
-                    ProjectId = t.ProjectId
-                })
-                .FirstOrDefaultAsync();
+                //.Select(t => new TaskDTO
+                //{
+                //    TaskId = t.TaskId,
+                //    Title = t.Title,
+                //    Description = t.Description,
+                //    Status = t.Status,
+                //    Priority = t.Priority,
+                //    ProjectName = t.Project != null ? t.Project.Name : null,
+                //    isDeleted = t.IsDeleted,
+                //    ProjectId = t.ProjectId
+                //})
+                .FirstOrDefaultAsync(ct);
         }
-
-        public async Task<TaskDTO> GetTaskById(int id)
+        public async Task<TA_Domain.Entities.Task> GetTaskById(int id, CancellationToken ct)
         {
             var dto = await _context.Tasks
                 .Where(t => t.TaskId == id)
-                .Select(t => new TaskDTO
-                {
-                    TaskId = t.TaskId,
-                    Title = t.Title,
-                    Description = t.Description,
-                    Status = t.Status,
-                    Priority = t.Priority,
-                    ProjectName = t.Project != null ? t.Project.Name : null,
-                    isDeleted = t.IsDeleted,
-                    ProjectId = t.ProjectId
-                })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(ct);
 
             if (dto == null)
                 throw new ArgumentException("Task not found", nameof(id));
 
             return dto;
         }
-        public async Task<List<UserDTO>> GetTaskMembers(int taskId)
+        public async Task<List<TaskMember>> GetTaskMembers(int taskId, CancellationToken ct)
         {
             var members = await _context.TaskMembers
                 .Where(m => m.TaskId == taskId && !m.IsDeleted)
-                .Select(t => new UserDTO
-                {
-                    Id = t.UserId,
-                    FullName = t.User != null ? t.User.FullName : null,
-                    Email = t.User != null ? t.User.Email : null,
-                }).ToListAsync();
+                .ToListAsync(ct);
             return members;
         }
 
-        public async System.Threading.Tasks.Task RemoveMember(string id, int taskId)
+        public async Task<bool> RemoveMember(string id, int taskId, CancellationToken ct)
         {
             var member = await _context.TaskMembers.Where(m => m.UserId == id && m.TaskId == taskId && !m.IsDeleted).FirstOrDefaultAsync();
-            if (member == null) throw new ArgumentException("Member not found", nameof(member));
+            if (member == null)
+            {
+                return false;
+            }
             member.IsDeleted = true;
             await _context.SaveChangesAsync();
-
-
+            return true;
         }
 
-        public async Task<TaskMembersDTO?> SaveTaskMembers(TaskMembersDTO dto)
+        public async Task<TaskMember?> SaveTaskMembers(TaskMember entity, CancellationToken ct)
         {
             var exists = await _context.TaskMembers
-                .AnyAsync(t => t.UserId == dto.UserId
-                            && t.TaskId == dto.TaskId
+                .AnyAsync(t => t.UserId == entity.UserId
+                            && t.TaskId == entity.TaskId
                             && !t.IsDeleted);
 
             if (exists)
             {
-                throw new ArgumentException("User already assigned to task!", nameof(dto));
+                throw new ArgumentException("User already assigned to task!", nameof(entity));
             }
-
-            var entity = new TaskMember
-            {
-                UserId = dto.UserId,
-                TaskId = dto.TaskId,
-                CreatedAt = DateTime.UtcNow,
-                IsDeleted = false
-            };
 
             _context.TaskMembers.Add(entity);
             await _context.SaveChangesAsync();
-
-            return new TaskMembersDTO
-            {
-                UserId = entity.UserId,
-                TaskId = entity.TaskId
-            };
+            return entity;
         }
 
-        public async Task<UpdateTaskDTO> UpdateTaskAsync(UpdateTaskDTO dto)
+        public async Task<TA_Domain.Entities.Task> UpdateTaskAsync(TA_Domain.Entities.Task dto, CancellationToken ct)
         {
             var existing = await _context.Tasks
                 .FirstOrDefaultAsync(t => t.TaskId == dto.TaskId) ?? throw new KeyNotFoundException("Task not found");
@@ -226,10 +181,7 @@ namespace TA_Infrastructure.Repositories
             existing.Priority = dto.Priority;
 
             await _context.SaveChangesAsync();
-
             return dto;
         }
-
-
     }
 }

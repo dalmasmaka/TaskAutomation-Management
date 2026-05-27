@@ -1,6 +1,4 @@
 ﻿using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.VisualBasic;
 using Newtonsoft.Json;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -40,12 +38,7 @@ namespace TA_Infrastructure.HttpClients
 
             return System.Threading.Tasks.Task.FromResult(url);
         }
-        public async Task<JiraTokenResponseDTO> ExchangeCodeForTokenAsync(
-    string code,
-    int projectId,
-    string clientId,
-    string clientSecret,
-    string redirectUri)
+        public async Task<JiraTokenResponseDTO> ExchangeCodeForTokenAsync(string code, int projectId, string clientId, string clientSecret, string redirectUri)
         {
             var tokenUrl = $"{_settings.AuthBaseUrl}{_settings.TokenEndpoint}";
 
@@ -74,37 +67,6 @@ namespace TA_Infrastructure.HttpClients
                 ExpiresIn = doc.RootElement.GetProperty("expires_in").GetInt32()
             };
         }
-        // 🔹 2. Exchange Code → Access Token
-        //public async Task<string> ExchangeCodeForTokenAsync(
-        //    string code,
-        //    int porjectId,
-        //    string clientId,
-        //    string clientSecret,
-        //    string redirectUri)
-        //{
-        //    var tokenUrl = $"{_settings.AuthBaseUrl}{_settings.TokenEndpoint}";
-
-        //    var request = new HttpRequestMessage(HttpMethod.Post, tokenUrl)
-        //    {
-        //        Content = JsonContent.Create(new
-        //        {
-        //            grant_type = "authorization_code",
-        //            client_id = clientId,
-        //            client_secret = clientSecret,
-        //            code = code,
-        //            redirect_uri = redirectUri
-        //        })
-        //    };
-
-        //    var response = await _httpClient.SendAsync(request);
-        //    response.EnsureSuccessStatusCode();
-
-        //    var json = await response.Content.ReadAsStringAsync();
-        //    using var doc = JsonDocument.Parse(json);
-
-        //    return doc.RootElement.GetProperty("access_token").GetString()!;
-        //}
-        // 🔹 3. Get CloudId
         public async Task<string> GetCloudIdAsync(string accessToken)
         {
             var request = new HttpRequestMessage(
@@ -163,7 +125,7 @@ namespace TA_Infrastructure.HttpClients
 
             return boardList;
         }
-        public async Task<List<TaskDTO>> GetJiraTasksAsync(string accessToken, string cloudId, string projectKey, int localProjectId)
+        public async Task<List<TA_Domain.Entities.Task>> GetJiraTasksAsync(string accessToken, string cloudId, string projectKey, int localProjectId)
         {
             string jql = $"project = '{projectKey}'";
             string encodedJql = Uri.EscapeDataString(jql);
@@ -179,7 +141,7 @@ namespace TA_Infrastructure.HttpClients
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
 
-            var tasks = new List<TaskDTO>();
+            var tasks = new List<TA_Domain.Entities.Task>();
 
             if (doc.RootElement.TryGetProperty("issues", out var issues))
             {
@@ -224,7 +186,7 @@ namespace TA_Infrastructure.HttpClients
                         ? keyProp.GetString()
                         : "";
 
-                    tasks.Add(new TaskDTO
+                    tasks.Add(new TA_Domain.Entities.Task
                     {
                         ExternalId = externalId,
                         Title = title,
@@ -288,31 +250,8 @@ namespace TA_Infrastructure.HttpClients
 
             return sb.ToString().Trim();
         }
-        //private string ExtractTextFromAdf(JsonElement adfElement)
-        //{
-        //    try
-        //    {
-        //        // Digging into: description -> content -> content -> text
-        //        if (adfElement.TryGetProperty("content", out var contentArray) && contentArray.GetArrayLength() > 0)
-        //        {
-        //            var firstParagraph = contentArray[0];
-        //            if (firstParagraph.TryGetProperty("content", out var textNodes) && textNodes.GetArrayLength() > 0)
-        //            {
-        //                return textNodes[0].GetProperty("text").GetString() ?? "";
-        //            }
-        //        }
-        //    }
-        //    catch
-        //    {
-        //        // Fallback: If it's too complex, just return the raw text so you don't lose data
-        //        return adfElement.GetRawText();
-        //    }
-        //    return "";
-        //}
-        public async Task<JiraTokenResponseDTO> RefreshTokenAsync(
-    string refreshToken,
-    string clientId,
-    string clientSecret)
+     
+        public async Task<JiraTokenResponseDTO> RefreshTokenAsync(string refreshToken, string clientId,  string clientSecret)
         {
             var request = new HttpRequestMessage(HttpMethod.Post,
                 "https://auth.atlassian.com/oauth/token");
@@ -339,5 +278,6 @@ namespace TA_Infrastructure.HttpClients
 
             return JsonConvert.DeserializeObject<JiraTokenResponseDTO>(content)!;
         }
+       
     }
 }

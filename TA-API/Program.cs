@@ -71,6 +71,7 @@ builder.Services.AddAuthentication(options =>
             return System.Threading.Tasks.Task.CompletedTask;
         },
         OnTokenValidated = context =>
+        
         {
             Console.WriteLine("Token Validated Successfully!");
             return System.Threading.Tasks.Task.CompletedTask;
@@ -118,6 +119,9 @@ builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 
 builder.Services.AddScoped<ITasksService, TasksService>(); 
 builder.Services.AddScoped<ITasksRepository, TasksRepository>();
+
+builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<ITeamRepository, TeamRepository>();
 
 builder.Services.AddScoped<IGitHubClientFactory, GitHubClientFactory>();
 builder.Services.AddScoped<IGitHubService, GitHubService>();

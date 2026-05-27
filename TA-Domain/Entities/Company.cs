@@ -19,6 +19,7 @@ namespace TA_Domain.Entities
         public ICollection<ApplicationUser> Users { get; set; } = new List<ApplicationUser>();
         public ICollection<WorkspaceInvitations>? WorkspaceInvitations { get; set; }
         public ICollection<Project>? Projects { get; set; }
+        public ICollection<Team> Teams { get; set; }
 
     }
 }

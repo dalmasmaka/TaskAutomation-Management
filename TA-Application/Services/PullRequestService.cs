@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Octokit;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
@@ -28,57 +27,79 @@ namespace TA_Application.Services
             _logger = logger;
         }
 
-        public async Task<PullRequestDTO> CreatePullRequestAsync(PullRequestCreationDTO dto)
+        public async Task<PullRequestDTO> CreatePullRequestAsync(PullRequestCreationDTO dto, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(dto);
 
-            var config = await _gitHubConfigRepository.GetByProjectId(dto.ProjectId)
+            var config = await _gitHubConfigRepository.GetByProjectId(dto.ProjectId, ct)
                 ?? throw new InvalidOperationException("GitHub is not configured for this project.");
 
-            var userConfig = await _gitHubConfigRepository.GetUsersGitHubConfig(dto.UserId)
+            var userConfig = await _gitHubConfigRepository.GetUsersGitHubConfig(dto.UserId, ct)
                 ?? throw new InvalidOperationException("GitHub account is not configured for this user.");
-
+          
             var pr = await _gitHubService.CreatePullRequestAsync(dto, config, userConfig);
 
             if (pr == null)
                 throw new InvalidOperationException("Failed to create pull request.");
 
-            pr.UserId = dto.UserId;
 
-            await _pullRequestRepository.SavePullRequestAsync(pr);
-
-            return pr;
+            var entity = await _pullRequestRepository.SavePullRequestAsync(pr, ct);
+            var mapped = new PullRequestDTO
+            {
+                Id = entity.ExternalId,
+                TaskId = entity.TaskId,
+                BranchName = entity.BranchName,
+                PRUrl = entity.PRUrl,
+                PRName = entity.PRName,
+                PRDescription = entity.PRDescription,
+                Status = entity.Status,
+                UserId = entity.CreatedById
+            };
+            return mapped;
         }
 
-        public async Task<PagedResult<PullRequestListDTO>> GetAllPRAsync(PRQuery query, string userId, string role, int companyId)
+        public async Task<PagedResult<PullRequestListDTO>> GetAllPRAsync(PRQuery query, string userId, string role, int companyId, CancellationToken ct)
         {
-            var pr = _pullRequestRepository.GetAllPRsAsync(userId, role, companyId);
-
+            var pr = _pullRequestRepository.GetAllPRsAsync(userId, role, companyId, ct);
+            var dto = pr.Select(x => new PullRequestListDTO
+            {
+                TaskId = x.TaskId,
+                ProjectName = x.Task.Project != null ? x.Task.Project.Name : null,
+                BranchName = x.BranchName,
+                PrId = x.Id,
+                PRName = x.PRName,
+                PRDescription = x.PRDescription,
+                ProjectId = x.Task.ProjectId,
+                PRUrl = x.PRUrl,
+                Status = x.Status,
+                CreatedBy = x.CreatedBy.FullName,
+                CreatedById = x.CreatedById
+            });
             if (query.ProjectIds?.Any() == true)
             {
-                pr = pr.Where(t => query.ProjectIds.Contains(t.ProjectId));
+                dto = dto.Where(t => query.ProjectIds.Contains(t.ProjectId));
             }
             if (query.TaskIds?.Any() == true)
             {
-                pr = pr.Where(t => query.TaskIds.Contains(t.TaskId));
+                dto = dto.Where(t => query.TaskIds.Contains(t.TaskId));
             }
             if (query.CreatedByIds?.Any() == true)
             {
-                pr = pr.Where(t => query.CreatedByIds.Contains(t.CreatedById));
+                dto = dto.Where(t => query.CreatedByIds.Contains(t.CreatedById));
             }
             if (!string.IsNullOrWhiteSpace(query.Search))
-                pr = pr.Where(x => x.TaskId.ToString().Equals(query.Search));
+                dto = dto.Where(x => x.TaskId.ToString().Equals(query.Search));
             if (!string.IsNullOrWhiteSpace(query.Status))
             {
                 var statusList = query.Status
                     .Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(s => s.Trim());
 
-                pr = pr.Where(t => statusList.Contains(t.Status));
+                dto = dto.Where(t => statusList.Contains(t.Status));
             }
             var totalCount = await pr.CountAsync();
 
-            var data = await pr
+            var data = await dto
                 .Skip((query.PageNumber - 1) * query.PageSize)
                 .Take(query.PageSize)
                 .ToListAsync();
@@ -90,15 +111,24 @@ namespace TA_Application.Services
             };
         }
 
-        public async Task<List<ReviewDTO>> GetReviewsForPullRequestAsync(int pullRequestId)
+        public async Task<List<ReviewDTO>> GetReviewsForPullRequestAsync(int pullRequestId, CancellationToken ct)
         {
             if(pullRequestId <= 0)
                 throw new ArgumentException("Invalid pull request ID.");
 
             try
             {
-                var reviews = await _pullRequestRepository.GetReviewsForPullRequestAsync(pullRequestId);
-                return reviews;
+                var reviews = await _pullRequestRepository.GetReviewsForPullRequestAsync(pullRequestId, ct);
+                var mapped = reviews.Select(t => new ReviewDTO
+                {
+                    PRId = t.PullRequestId,
+                    Comment = t.Comment,
+                    Decision = t.Decision,
+                    Developer = t.CreatedBy.FullName,
+                    DeveloperId = t.CreatedById
+
+                }).ToList();
+                return mapped;
             }
             catch(Exception ex)
             {
@@ -106,33 +136,43 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<ReviewDTO> SubmitReviewAsync(ReviewRequestDTO dto)
+        public async Task<ReviewDTO> SubmitReviewAsync(ReviewRequestDTO dto, CancellationToken ct)
         {
             // 1. Guard clause: Use the built-in throw helper
             ArgumentNullException.ThrowIfNull(dto);
 
             try
             {
-                var config = await _gitHubConfigRepository.GetByProjectId(dto.ProjectId)
+                var config = await _gitHubConfigRepository.GetByProjectId(dto.ProjectId, ct)
                     ?? throw new InvalidOperationException($"GitHub configuration missing for ProjectId: {dto.ProjectId}");
+           
+                var entity = new Review
+                {
+                    PullRequestId = dto.PrID,
+                    Comment = dto.Comment,
+                    Decision = dto.Decision,
+                    CreatedById = dto.UserId
+                };
+                var review = await _gitHubService.SubmitReviewAsync(entity, config, ct);
 
-                var review = await _gitHubService.SubmitReviewAsync(dto, config);
-
-                if (review == null)
-                    return null;
-
-                var savedReview = await _pullRequestRepository.SaveReviewAsync(review);
+                var savedReview = await _pullRequestRepository.SaveReviewAsync(review, ct);
                 if (savedReview != null)
                 {
-                    var updatedPr = await _pullRequestRepository.UpdatePrStatus(review.PRId, review.Decision);
+                    var updatedPr = await _pullRequestRepository.UpdatePrStatus(review.PullRequestId, review.Decision, ct);
 
                     if (updatedPr == null)
                     {
-                        throw new InvalidOperationException($"Failed to update PR status for PRId: {review.PRId}");
+                        throw new InvalidOperationException($"Failed to update PR status for PRId: {review.PullRequestId}");
                     }
                 }
+                var mapped = new ReviewDTO
+                {
+                    PRId = review.PullRequestId,
+                    Comment = dto.Comment,
+                    Decision = dto.Decision
+                };
 
-                return review;
+                return mapped;
             }
             catch (Exception ex)
             {

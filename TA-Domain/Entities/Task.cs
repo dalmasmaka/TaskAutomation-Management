@@ -9,7 +9,7 @@ namespace TA_Domain.Entities
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int TaskId { get; set; }
         [MaxLength(100)]
-        public required string ExternalId { get; set; }
+        public string ExternalId { get; set; }
         [MaxLength(200)]
         public required string Title { get; set; }
         public string? Description { get; set; }

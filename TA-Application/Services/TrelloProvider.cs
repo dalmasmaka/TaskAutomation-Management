@@ -26,9 +26,9 @@ namespace TA_Application.Services
         public async Task<string> GetAuthUrlAsync(int projectId, int companyId)
             => await _httpClient.GetAuthorizationUrlAsync(_config.ClientId!, _config.RedirectUri!, projectId, companyId);
 
-        public async System.Threading.Tasks.Task AuthorizeAndSaveAsync(string token, int projectId)
+        public async System.Threading.Tasks.Task AuthorizeAndSaveAsync(string token, int projectId, CancellationToken ct)
         {
-            var integration = new ProjectIntegrationDTO
+            var integration = new ProjectIntegration
             {
                 ProjectId = projectId,
                 Provider = "Trello",
@@ -36,12 +36,12 @@ namespace TA_Application.Services
                 AccessToken = token,
                 ExpiresAt = null // Trello tokens can be set to "never" expire
             };
-            await _projectRepo.SaveAsync(integration);
+            await _projectRepo.SaveAsync(integration, ct);
         }
 
-        public async Task<List<Board>> GetBoardsAsync(int projectId)
+        public async Task<List<Board>> GetBoardsAsync(int projectId, CancellationToken ct)
         {
-            var integration = await _projectRepo.GetByProjectIdAsync(projectId);
+            var integration = await _projectRepo.GetByProjectIdAsync(projectId, ct);
 
             if (integration == null || string.IsNullOrWhiteSpace(integration.AccessToken))
                 throw new Exception("Project is not integrated with Trello.");
@@ -52,12 +52,12 @@ namespace TA_Application.Services
             return await _httpClient.GetBoardsAsync(key, integration.AccessToken);
         }
 
-        public async Task<ResponseDTO> SaveTasks(int projectId)
+        public async Task<bool> SaveTasks(int projectId, CancellationToken ct)
         {
-            var integration = await _projectRepo.GetByProjectIdAsync(projectId);
+            var integration = await _projectRepo.GetByProjectIdAsync(projectId, ct);
             if (integration == null)
             {
-                return new ResponseDTO { Success = false, Message = "Integration not found." };
+                return false;
             }
 
             var result = await _httpClient.GetTrelloTasks(
@@ -67,19 +67,13 @@ namespace TA_Application.Services
               projectId
           );
 
-            await _projectRepo.SaveTasksAsync(result);
- 
-
-            return new ResponseDTO
-            {
-                Success = true,
-                Message = $"Successfully imported {result.Count} tasks from Jira.",
-            };
+            await _projectRepo.SaveTasksAsync(result, ct);
+            return true;
         }
 
-        public async System.Threading.Tasks.Task SaveBoardSelectionAsync(int projectId, string boardId, string key)
+        public async System.Threading.Tasks.Task SaveBoardSelectionAsync(int projectId, string boardId, string key, CancellationToken ct)
         {
-            var integration = await _projectRepo.GetByProjectIdAsync(projectId);
+            var integration = await _projectRepo.GetByProjectIdAsync(projectId, ct);
 
             if (integration == null)
                 throw new Exception("Integration record not found.");
@@ -89,20 +83,30 @@ namespace TA_Application.Services
 
             integration.ExternalBoardId = boardId;
 
-            await _projectRepo.SaveAsync(integration);
+            await _projectRepo.SaveAsync(integration, ct);
             if (integration.AccessToken == null)
                 throw new Exception("Token not found.");
-        
+
             var result = await _httpClient.GetTrelloTasks(
                 integration.AccessToken,
                 boardId,
                 key,
                 projectId
             );
+            var dto = new ProjectIntegrationDTO
+            {
+                ProjectId = integration.ProjectId,
+                AccessToken = integration.AccessToken,
+                Provider = integration.Provider,
+                RefreshToken = integration.RefreshToken,
+                ExternalBoardId = integration.ExternalBoardId,
+                ExternalId = integration.ExternalId,
+                CloudId = integration.CloudId
 
-            await _projectRepo.SaveTasksAsync(result);
-            var webhookService = await _webhookFactory.GetAsync("Trello", integration.CompanyId);
-            await webhookService.RegisterAsync(integration);
+            };
+            await _projectRepo.SaveTasksAsync(result, ct);
+            var webhookService = await _webhookFactory.GetAsync("Trello", integration.Project.CompanyId);
+            await webhookService.RegisterAsync(dto);
         }
 
     }

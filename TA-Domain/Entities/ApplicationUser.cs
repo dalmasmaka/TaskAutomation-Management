@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TA_Domain.Entities
 {
@@ -13,5 +12,6 @@ namespace TA_Domain.Entities
         public ICollection<Company>? OwnedCompanies { get; set; }
         public ICollection<UserProject>? UserProjects { get; set; }
         public ICollection<TaskMember> TaskMembers { get; set; } = new List<TaskMember>();
+        public ICollection<TeamMember> TeamMembers { get; set; }= new List<TeamMember>();
     }
 }

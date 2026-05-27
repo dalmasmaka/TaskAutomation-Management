@@ -10,7 +10,7 @@ using TA_Application.Interfaces.Services;
 using TA_Domain.Entities;
 namespace TA_Application.Services
 {
-    public class ApplicationUserService: IAppUserService
+    public class ApplicationUserService : IAppUserService
     {
         private readonly IAppUserRepository _repo;
         private readonly ICompanyRepository _companyService;
@@ -35,38 +35,38 @@ namespace TA_Application.Services
             _appService = layerService;
             _roleManager = roleManager;
         }
-        public async Task<ResponseDTO> CheckUserExistsAsync(string email)
+        public async Task<ResponseDTO> CheckUserExistsAsync(string email, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(email);
             try
             {
-                var result = await _repo.GetByEmailAsync(email);
+                var result = await _repo.GetByEmailAsync(email, ct);
                 if (result != null)
                 {
                     return new ResponseDTO { Success = false, Message = "User with this email already exists." };
-                    
+
                 }
                 return new ResponseDTO { Success = true, Message = "User does not exist." };
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while checking user!");
                 return new ResponseDTO { Success = false, Message = ex.Message };
             }
-            
+
         }
-        public async Task<ResponseDTO> RegisterUserAsync(RegisterDTO userDTO)
+        public async Task<ResponseDTO> RegisterUserAsync(RegisterDTO userDTO, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(userDTO);
 
             try
             {
-                var existingUser = await CheckUserExistsAsync(userDTO.Email);
-                if(existingUser.Success == false)
+                var existingUser = await CheckUserExistsAsync(userDTO.Email, ct);
+                if (existingUser.Success == false)
                 {
                     return new ResponseDTO { Success = false, Message = existingUser.Message };
                 }
-                InvitationsDTO? invitationCode = null;
+                WorkspaceInvitations? invitationCode = null;
                 var user = new ApplicationUser
                 {
                     FullName = userDTO.FullName,
@@ -77,7 +77,7 @@ namespace TA_Application.Services
                 // Invitation logic
                 if (!string.IsNullOrEmpty(userDTO.InvitationCode))
                 {
-                    var checkInvitation = await _appService.CheckInvitationCode(userDTO.InvitationCode);
+                    var checkInvitation = await _appService.CheckInvitationCode(userDTO.InvitationCode, ct);
 
                     if (checkInvitation.Success == false)
                     {
@@ -89,7 +89,7 @@ namespace TA_Application.Services
                     }
 
                     invitationCode = await _companyService
-                        .GetInvitationsByInvitationCode(userDTO.InvitationCode);
+                        .GetInvitationByInvitationCode(userDTO.InvitationCode, ct);
 
                     if (invitationCode.CompanyId <= 0)
                     {
@@ -103,7 +103,7 @@ namespace TA_Application.Services
                     user.CompanyId = invitationCode.CompanyId;
                 }
 
-                await _repo.AddAsync(user);
+                await _repo.AddAsync(user, ct);
 
                 // Decide role
                 string roleName = invitationCode != null
@@ -123,12 +123,12 @@ namespace TA_Application.Services
 
                 if (userDTO.Role == "owner")
                 {
-                    var workspaceResult = await _companyService.AddWorkspace(userDTO.WorkspaceName!, user.Id);
+                    var workspaceResult = await _companyService.AddWorkspace(userDTO.WorkspaceName!, user.Id, ct);
 
                     user.CompanyId = workspaceResult.Id;
-                    await _repo.UpdateUser(user);
+                    await _repo.UpdateUser(user, ct);
                 }
-              
+
                 var token = _jwtService.GenerateToken(user, roleName);
 
                 return new ResponseDTO { Success = true, Message = token };
@@ -139,14 +139,14 @@ namespace TA_Application.Services
                 return new ResponseDTO { Success = false, Message = ex.Message };
             }
         }
-        public async Task<ResponseDTO> LoginUserAsync(string email, string password)
+        public async Task<ResponseDTO> LoginUserAsync(string email, string password, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(email);
             ArgumentNullException.ThrowIfNull(password);
 
             try
             {
-                var user = await _repo.GetByEmailAsync(email);
+                var user = await _repo.GetByEmailAsync(email, ct);
 
                 // Security Best Practice: Unified Error Message
                 //  "Invalid credentials" to prevent username harvesting.
@@ -179,17 +179,17 @@ namespace TA_Application.Services
                 };
             }
         }
-        public async Task<ResponseDTO> DeleteUserAsync(string id)
+        public async Task<ResponseDTO> DeleteUserAsync(string id, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(id);
             try
             {
-                var existingUser = await _repo.GetUserById(id);
+                var existingUser = await _repo.GetUserById(id, ct);
                 if (existingUser == null)
                 {
                     return new ResponseDTO { Success = false, Message = "User does not exist." };
                 }
-                await _repo.DeleteUser(id);
+                await _repo.DeleteUser(id, ct);
                 return new ResponseDTO { Success = true, Message = "User deleted successfully." };
             }
             catch (Exception ex)
@@ -198,13 +198,13 @@ namespace TA_Application.Services
                 return new ResponseDTO { Success = false, Message = "An unexpected error occurred." };
             }
         }
-        public async Task<ApplicationUser> UpdateUserAsync(UserDTO userDTO)
+        public async Task<ApplicationUser> UpdateUserAsync(UserDTO userDTO, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(userDTO);
 
             try
             {
-                var existingUser = await _repo.GetUserById(userDTO.Id!)?? throw new KeyNotFoundException("User not found");
+                var existingUser = await _repo.GetUserById(userDTO.Id!, ct) ?? throw new KeyNotFoundException("User not found");
 
                 if (!string.IsNullOrWhiteSpace(userDTO.FullName))
                     existingUser.FullName = userDTO.FullName;
@@ -218,7 +218,7 @@ namespace TA_Application.Services
                 if (!string.IsNullOrWhiteSpace(userDTO.Password))
                     existingUser.PasswordHash = _hasher.Hash(userDTO.Password);
 
-                await _repo.UpdateUser(existingUser);
+                await _repo.UpdateUser(existingUser, ct);
 
                 return existingUser;
             }
@@ -228,13 +228,13 @@ namespace TA_Application.Services
                 throw;
             }
         }
-        public async Task<ResponseDTO> ChangePasswordAsync(ChangePasswordDTO changePasswordDTO)
+        public async Task<ResponseDTO> ChangePasswordAsync(ChangePasswordDTO changePasswordDTO, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(changePasswordDTO);
-           
+
             try
             {
-                var storedHash = await _repo.GetPasswordByUserIdAsync(changePasswordDTO.userId);
+                var storedHash = await _repo.GetPasswordByUserIdAsync(changePasswordDTO.userId, ct);
 
                 //  Check if old password is correct
                 var isOldPasswordValid = _hasher.Verify(changePasswordDTO.oldPassword, storedHash);
@@ -262,7 +262,7 @@ namespace TA_Application.Services
                 var newHashedPassword = _hasher.Hash(changePasswordDTO.newPassword);
 
                 // Save to DB
-                await _repo.ChangePassword(changePasswordDTO.userId, newHashedPassword);
+                await _repo.ChangePassword(changePasswordDTO.userId, newHashedPassword, ct);
 
                 return new ResponseDTO
                 {
@@ -281,7 +281,7 @@ namespace TA_Application.Services
                 };
             }
         }
-        public async Task<UserDTO> GetCurrentUser(string userId)
+        public async Task<UserDTO> GetCurrentUser(string userId, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(userId);
 
@@ -302,14 +302,14 @@ namespace TA_Application.Services
                     Role = role
                 };
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error fetching user!");
                 throw;
             }
         }
 
-        public async Task<ResponseDTO> ChangeUserRole(string userId, string roleId)
+        public async Task<ResponseDTO> ChangeUserRole(string userId, string roleId, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(userId);
             ArgumentNullException.ThrowIfNull(roleId);
@@ -367,7 +367,7 @@ namespace TA_Application.Services
                 };
             }
         }
-        public async Task<List<RolesDTO>> GetAllRoles(string userId)
+        public async Task<List<RolesDTO>> GetAllRoles(string userId, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(userId);
 
@@ -387,7 +387,7 @@ namespace TA_Application.Services
                     .Select(role => new RolesDTO
                     {
                         RoleId = role.Id,
-                        RoleName = role.Name! 
+                        RoleName = role.Name!
                     })
                     .ToList();
 
@@ -400,12 +400,12 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<ResponseDTO> ForgotPasswordAsync(ForgotPasswordRequestDTO request)
+        public async Task<ResponseDTO> ForgotPasswordAsync(ForgotPasswordRequestDTO request, CancellationToken ct)
         {
             try
             {
                 var user = await _userManager.FindByEmailAsync(request.Email);
-                if(user == null)
+                if (user == null)
                 {
                     return new ResponseDTO
                     {
@@ -444,7 +444,7 @@ namespace TA_Application.Services
                     Message = "Password reset link has been sent. Check your email!"
                 };
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in ForgotPasswordAsync for email: {Email}", request.Email);
                 return new ResponseDTO
@@ -453,10 +453,10 @@ namespace TA_Application.Services
                     Message = "An error occurred while processing your request."
                 };
             }
-          
+
         }
 
-        public async Task<ResponseDTO> ResetPasswordAsync(ResetPasswordRequestDTO request)
+        public async Task<ResponseDTO> ResetPasswordAsync(ResetPasswordRequestDTO request, CancellationToken ct)
         {
             try
             {
@@ -467,7 +467,7 @@ namespace TA_Application.Services
 
                 user.PasswordHash = _hasher.Hash(request.NewPassword);
 
-                await _repo.UpdateUser(user);
+                await _repo.UpdateUser(user, ct);
                 return new ResponseDTO
                 {
                     Success = true,
@@ -485,14 +485,23 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<UserGitHubDTO> GetUserGitHubInfo(string userId)
+        public async Task<UserGitHubDTO> GetUserGitHubInfo(string userId, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(userId);
             try
             {
-                var info = await _repo.GetUserGitHubInfo(userId);
-                return info;
-               
+                var info = await _repo.GetUserGitHubInfo(userId, ct);
+                if (info == null)
+                    return null;
+                return new UserGitHubDTO
+                {
+                    Id = info.Id,
+                    AccessToken = info.AccessToken,
+                    Username = info.GitHubUsername,
+                    UserId = info.UserId
+
+                };
+
             }
             catch (Exception ex)
             {
@@ -501,16 +510,33 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<UserGitHubDTO> SaveUserGitHubInfo(UserGitHubDTO userGitHubDTO)
+        public async Task<UserGitHubDTO> SaveUserGitHubInfo(UserGitHubDTO dto, CancellationToken ct)
         {
-            ArgumentNullException.ThrowIfNull(userGitHubDTO);
+            ArgumentNullException.ThrowIfNull(dto);
+
             try
             {
-                var result = await _repo.SaveUserGitHubInfo(userGitHubDTO);
-                return result; 
+                var entity = new UserGitHubConfig
+                {
+                    Id = dto.Id,
+                    GitHubUsername = dto.Username,
+                    AccessToken = dto.AccessToken,
+                    UserId = dto.UserId
+                };
+
+                var result = await _repo.SaveUserGitHubInfo(entity, ct);
+
+                return new UserGitHubDTO
+                {
+                    Id = result.Id,
+                    Username = result.GitHubUsername,
+                    AccessToken = result.AccessToken,
+                    UserId = result.UserId
+                };
             }
-            catch (Exception ex) {
-                _logger.LogError(ex, "Unexpected error saving user github info!");
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error saving user GitHub info. UserId: {UserId}", dto.Id);
                 throw;
             }
         }

@@ -19,12 +19,12 @@ namespace TA_Application.Services
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                await RefreshTokens();
+                await RefreshTokens(stoppingToken);
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
         }
 
-        private async Task RefreshTokens()
+        private async Task RefreshTokens(CancellationToken ct)
         {
             using var scope = _scopeFactory.CreateScope();
 
@@ -32,14 +32,14 @@ namespace TA_Application.Services
             var http = scope.ServiceProvider.GetRequiredService<IJiraHttpClient>();
             var configRepo = scope.ServiceProvider.GetRequiredService<ICompanyConfigRepository>();
 
-            var integrations = await repo.GetExpiringJiraTokens();
+            var integrations = await repo.GetExpiringJiraTokens(ct);
 
             foreach (var integration in integrations)
             {
                 try
                 {
                     var config = await configRepo.GetByCompanyAndProviderAsync(
-                        integration.CompanyId, "Jira");
+                        integration.Project.CompanyId, "Jira");
 
                     var token = await http.RefreshTokenAsync(
                         integration.RefreshToken!,
@@ -51,7 +51,7 @@ namespace TA_Application.Services
                     integration.RefreshToken = token.RefreshToken;
                     integration.ExpiresAt = DateTime.UtcNow.AddSeconds(token.ExpiresIn);
 
-                    await repo.SaveAsync(integration);
+                    await repo.SaveAsync(integration, ct);
                 }
                 catch (Exception ex)
                 {

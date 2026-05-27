@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using TA_Application.DTOs;
+﻿using TA_Domain.Entities;
 
 namespace TA_Application.Interfaces.Repositories
 {
     public interface IGitHubConfigRepository
     {
-        Task<GitHubConfigDTO> GetByProjectId(int projectId);
-        Task<UserGitHubConfigDTO> GetUsersGitHubConfig(string UserId);
+        Task<GitHubConfig> GetByProjectId(int projectId, CancellationToken ct);
+        Task<UserGitHubConfig> GetUsersGitHubConfig(string UserId, CancellationToken ct);
     }
 }

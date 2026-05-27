@@ -8,18 +8,18 @@ namespace TA_Application.Interfaces.Services
 {
     public interface IAppUserService
     {
-        Task<ResponseDTO> CheckUserExistsAsync(string email);
-        Task<ResponseDTO> RegisterUserAsync(RegisterDTO userDTO);
-        Task<ResponseDTO> LoginUserAsync(string email, string password);
-        Task<ResponseDTO> DeleteUserAsync(string id);
-        Task<ApplicationUser> UpdateUserAsync(UserDTO userDTO);
-        Task<ResponseDTO> ChangePasswordAsync(ChangePasswordDTO changePasswordDTO);
-        Task<UserDTO> GetCurrentUser(string userId);
-        Task<UserGitHubDTO>GetUserGitHubInfo(string userId);
-        Task<UserGitHubDTO> SaveUserGitHubInfo(UserGitHubDTO userGitHubDTO);
-        Task<ResponseDTO> ChangeUserRole(string userId, string roleId);
-        Task<List<RolesDTO>> GetAllRoles(string userId);
-        Task<ResponseDTO> ForgotPasswordAsync(ForgotPasswordRequestDTO request);
-        Task<ResponseDTO> ResetPasswordAsync(ResetPasswordRequestDTO request);
+        Task<ResponseDTO> CheckUserExistsAsync(string email, CancellationToken ct);
+        Task<ResponseDTO> RegisterUserAsync(RegisterDTO userDTO, CancellationToken ct);
+        Task<ResponseDTO> LoginUserAsync(string email, string password, CancellationToken ct);
+        Task<ResponseDTO> DeleteUserAsync(string id, CancellationToken ct);
+        Task<ApplicationUser> UpdateUserAsync(UserDTO userDTO, CancellationToken ct);
+        Task<ResponseDTO> ChangePasswordAsync(ChangePasswordDTO changePasswordDTO, CancellationToken ct);
+        Task<UserDTO> GetCurrentUser(string userId, CancellationToken ct);
+        Task<UserGitHubDTO>GetUserGitHubInfo(string userId, CancellationToken ct);
+        Task<UserGitHubDTO> SaveUserGitHubInfo(UserGitHubDTO userGitHubDTO, CancellationToken ct);
+        Task<ResponseDTO> ChangeUserRole(string userId, string roleId, CancellationToken ct);
+        Task<List<RolesDTO>> GetAllRoles(string userId, CancellationToken ct);
+        Task<ResponseDTO> ForgotPasswordAsync(ForgotPasswordRequestDTO request, CancellationToken ct);
+        Task<ResponseDTO> ResetPasswordAsync(ResetPasswordRequestDTO request, CancellationToken ct);
     }
 }

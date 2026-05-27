@@ -81,7 +81,7 @@ namespace TA_Application.Services
                     var existing = existingHooks?.Values?.FirstOrDefault(x => x.Url.Equals(targetUrl, StringComparison.OrdinalIgnoreCase));
                     if (existing != null)
                     {
-                        await _webhookRepo.SaveLogAsync(new ProjectWebhookDTO
+                        await _webhookRepo.SaveLogAsync(new ProjectWebhook
                         {
                             ExternalWebhookId = existing.Id.ToString(),
                             ProjectId = integration.ProjectId,
@@ -124,8 +124,7 @@ namespace TA_Application.Services
 
                 if (!string.IsNullOrEmpty(webhookId))
                 {
-                    // Now you can save it to your database
-                    await _webhookRepo.SaveLogAsync(new ProjectWebhookDTO
+                    await _webhookRepo.SaveLogAsync(new ProjectWebhook
                     {
                         ExternalWebhookId = webhookId,
                         ProjectId = integration.ProjectId,
