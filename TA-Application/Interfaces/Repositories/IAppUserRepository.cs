@@ -5,17 +5,17 @@ namespace TA_Application.Interfaces.Repositories
 {
     public  interface IAppUserRepository
     {
-        System.Threading.Tasks.Task AddAsync(ApplicationUser user);
-        Task<string> GetPasswordByUserIdAsync(string userId);
-        System.Threading.Tasks.Task ChangePassword(string currentPassword, string newPassword);
-        Task<ApplicationUser> GetByEmailAsync(string email);
-        Task<IEnumerable<ApplicationUser>> GetAllUsers();
-        Task<ApplicationUser> GetUserById(string id);
-        Task<UserGitHubDTO> GetUserGitHubInfo(string userId);
-        Task<UserGitHubDTO> SaveUserGitHubInfo(UserGitHubDTO userGitHubDTO);
-        Task<ApplicationUser> UpdateUser(ApplicationUser user);
-        System.Threading.Tasks.Task DeleteUser(string id);
-        Task<int> GetTotalUsersCountAsync();
-        System.Threading.Tasks.Task DeleteUsersByCompanyIdAsync(int companyId);
+        Task<ApplicationUser> AddAsync(ApplicationUser user, CancellationToken ct);
+        Task<string> GetPasswordByUserIdAsync(string userId, CancellationToken ct);
+        Task<bool> ChangePassword(string currentPassword, string newPassword, CancellationToken ct);
+        Task<ApplicationUser> GetByEmailAsync(string email, CancellationToken ct);
+        Task<IEnumerable<ApplicationUser>> GetAllUsers(CancellationToken ct);
+        Task<ApplicationUser> GetUserById(string id, CancellationToken ct);
+        Task<UserGitHubConfig> GetUserGitHubInfo(string userId, CancellationToken ct);
+        Task<UserGitHubConfig> SaveUserGitHubInfo(UserGitHubConfig userGitHubDTO, CancellationToken ct);
+        Task<ApplicationUser> UpdateUser(ApplicationUser user, CancellationToken ct);
+        Task<bool> DeleteUser(string id, CancellationToken ct);
+        Task<int> GetTotalUsersCountAsync(CancellationToken ct);
+        Task<bool> DeleteUsersByCompanyIdAsync(int companyId, CancellationToken ct);
     }
 }

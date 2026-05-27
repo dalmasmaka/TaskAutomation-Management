@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 using TA_Application.Configurations;
 using TA_Application.Interfaces.Services;
+using TA_Domain.Entities;
 namespace TA_Infrastructure.HttpClients
 {
     public class TrelloHttpClient : ITrelloHttpClient
@@ -51,7 +52,7 @@ namespace TA_Infrastructure.HttpClients
             return boards ?? [];
         }
 
-        public async Task<List<TaskDTO>> GetTrelloTasks(string accessToken, string boardId, string apiKey, int projectId)
+        public async Task<List<TA_Domain.Entities.Task>> GetTrelloTasks(string accessToken, string boardId, string apiKey, int projectId)
         {
             var url = $"https://api.trello.com/1/boards/{boardId}/cards" +
               $"?key={apiKey}&token={accessToken}";
@@ -66,7 +67,7 @@ namespace TA_Infrastructure.HttpClients
 
             var trelloCards = await response.Content.ReadFromJsonAsync<List<TrelloCardResponse>>();
 
-            return trelloCards!.Select(card => new TaskDTO
+            return trelloCards!.Select(card => new TA_Domain.Entities.Task
             {
                 ExternalId = card.Id,
                 Title = card.Name,

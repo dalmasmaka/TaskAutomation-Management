@@ -1,9 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
-using System.Reflection.Emit;
 using TA_Domain.Entities;
-using TA_Infrastructure.Persistence.Migrations;
 
 namespace TA_Infrastructure.Persistence
 {
@@ -103,7 +100,42 @@ namespace TA_Infrastructure.Persistence
                     .HasForeignKey(c => c.UpdatedById)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+            builder.Entity<TeamMember>()
+               .HasOne(tm => tm.User)
+               .WithMany(u => u.TeamMembers)
+               .HasForeignKey(tm => tm.UserId)
+               .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<TeamMember>()
+             .HasOne(tm => tm.CreatedBy)
+             .WithMany()
+             .HasForeignKey(tm => tm.CreatedById)
+             .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<TeamMember>()
+             .HasOne(tm => tm.UpdatedBy)
+             .WithMany()
+             .HasForeignKey(tm => tm.UpdatedById)
+             .OnDelete(DeleteBehavior.Restrict);
 
+            builder.Entity<TeamMember>()
+                .HasOne(tm => tm.Team)
+                .WithMany(t => t.TeamMembers)
+                .HasForeignKey(tm => tm.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ProjectTeam>()
+                .HasKey(pt => pt.Id);
+
+            builder.Entity<ProjectTeam>()
+                .HasOne(pt => pt.Project)
+                .WithMany(p => p.ProjectTeams)
+                .HasForeignKey(pt => pt.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ProjectTeam>()
+                .HasOne(pt => pt.Team)
+                .WithMany(t => t.ProjectTeams)
+                .HasForeignKey(pt => pt.TeamId)
+                .OnDelete(DeleteBehavior.Restrict);
 
         }
         public DbSet<Company> Companies { get; set; }
@@ -119,5 +151,8 @@ namespace TA_Infrastructure.Persistence
         public DbSet<ProjectWebhook> ProjectWebhooks { get; set; }
         public DbSet<GitHubConfig> GitHubConfigs { get; set; }
         public DbSet<TA_Domain.Entities.UserGitHubConfig> UserGitHubConfigs { get; set; }
+        public DbSet<Team> Teams { get; set; }
+        public DbSet<TeamMember> TeamMembers { get; set; }
+        public DbSet<ProjectTeam> ProjectTeams { get; set; }
     }
 }

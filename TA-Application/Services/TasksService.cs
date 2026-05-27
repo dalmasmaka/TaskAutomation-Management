@@ -1,14 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Text;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
 using TA_Domain.Entities;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace TA_Application.Services
 {
@@ -25,51 +21,69 @@ namespace TA_Application.Services
             _companyRepository = companyRepository;
             _logger = logger;
         }
-        public async System.Threading.Tasks.Task DeleteAsync(int id)
+        public async Task<ResponseDTO> DeleteAsync(int id, CancellationToken ct)
         {
             try
             {
-                if (id == 0) throw new ArgumentException("Id is null", nameof(id));
-                await _tasksRepository.DeleteAsync(id);
+                if (id == 0)
+                    throw new ArgumentException("Id is null", nameof(id));
+
+                var result = await _tasksRepository.DeleteAsync(id, ct);
+
+                if (result == null)
+                {
+                    return new ResponseDTO
+                    {
+                        Success = false,
+                        Message = "Error while deleting task."
+                    };
+                }
+
+                return new ResponseDTO
+                {
+                    Success = true,
+                    Message = "Task deleted successfully."
+                };
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("DeleteAsync was cancelled. TaskId: {TaskId}", id);
+                throw;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting task!");
+
+                return new ResponseDTO
+                {
+                    Success = false,
+                    Message = "An unexpected error occurred while deleting the task."
+                };
             }
         }
-
-
-        public async Task<PagedResult<TaskDTO>> GetProjectTasks(int projectId)
-        {
-            var query = _tasksRepository.GetProjectTasks(projectId);
-
-            var totalCount = await query.CountAsync();
-
-            var items = await query.ToListAsync();
-
-            return new PagedResult<TaskDTO>
-            {
-                Items = items,
-                TotalCount = totalCount
-            };
-        }
-
-        public async Task<TaskDTO> GetTaskByIdAsync(int id)
+        public async Task<TaskDTO> GetTaskByIdAsync(int id, CancellationToken ct)
         {
             try
             {
                 if (id == 0) throw new ArgumentException("Task id is null", nameof(id));
-                var task = await _tasksRepository.GetTaskById(id);
+                var task = await _tasksRepository.GetTaskById(id, ct);
                 var dto = new TaskDTO
                 {
+                    TaskId = task.TaskId,
                     Title = task.Title,
                     Description = task.Description,
-                    ImportStatus = task.ImportStatus,
                     Status = task.Status,
                     Priority = task.Priority,
-                    //AssignedTo = task.AssignedTo
+                    ProjectName = task.Project != null ? task.Project.Name : null,
+                    isDeleted = task.IsDeleted,
+                    ProjectId = task.ProjectId
                 };
                 return dto;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("DeleteAsync was cancelled. TaskId: {TaskId}", id);
+                throw;
             }
             catch (Exception ex)
             {
@@ -77,27 +91,45 @@ namespace TA_Application.Services
                 return new TaskDTO();
             }
         }
-
-        public async Task<TaskMembersResponseDTO> GetAllMembersAsync(int taskId)
+        public async Task<TaskMembersResponseDTO> GetAllMembersAsync(int taskId, CancellationToken ct)
         {
             try
             {
-                var task = await _tasksRepository.GetTaskById(taskId);
+                var task = await _tasksRepository.GetTaskById(taskId, ct);
                 if (task == null)
                     throw new Exception("Task not found");
-                var assignedMembers = await _tasksRepository.GetTaskMembers(taskId);
-                var projectMembers = await _projectRepository.GetMembersAsync(task.ProjectId);
-                var assignedIds = assignedMembers.Select(a => a.Id).ToHashSet();
+                var assignedMembers = await _tasksRepository.GetTaskMembers(taskId, ct);
+                var projectMembers = await _projectRepository.GetMembersAsync(task.ProjectId, ct);
+                var assignedIds = assignedMembers.Select(a => a.UserId).ToHashSet();
 
                 var availableMembers = projectMembers
-                    .Where(pm => !assignedIds.Contains(pm.Id))
+                    .Where(pm => !assignedIds.Contains(pm.User.Id))
                     .ToList();
+                var mappedAvailableMembers = availableMembers.Select(t => new UserDTO
+                {
+                    UserName = t.User.UserName,
+                    FullName = t.User.FullName,
+                    Email = t.User.Email,
+                    PhoneNumber = t.User.PhoneNumber,
+                    Role = t.RoleName,
 
+                }).ToList();
+                var mappedAssignedMembers = assignedMembers.Select(t => new UserDTO
+                {
+                    Id = t.UserId,
+                    FullName = t.User.FullName,
+                    Email = t.User.Email,
+                }).ToList();
                 return new TaskMembersResponseDTO
                 {
-                    AssignedMembers = assignedMembers,
-                    AvailableMembers = availableMembers
+                    AssignedMembers = mappedAssignedMembers,
+                    AvailableMembers = mappedAvailableMembers
                 };
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("GetAllMembersAsync was cancelled. TaskId: {TaskId}", taskId);
+                throw;
             }
             catch (Exception ex)
             {
@@ -105,18 +137,36 @@ namespace TA_Application.Services
                 return new TaskMembersResponseDTO();
             }
         }
-
-        public async Task<PagedResult<TaskDTO>> GetTasksAsync(TaskQuery query, string userId, string role, int companyId)
+        public async Task<PagedResult<TaskDTO>> GetTasksAsync(TaskQuery query, string userId, string role, int companyId, CancellationToken ct)
         {
-            var tasks = _tasksRepository.GetAllTasks(userId, role, companyId);
-
+            var tasks = _tasksRepository.GetAllTasks(userId, role, companyId).AsNoTracking();
+            var dtoQuery = tasks.Select(t => new TaskDTO
+            {
+                TaskId = t.TaskId,
+                Title = t.Title,
+                Description = t.Description,
+                Priority = t.Priority,
+                Status = t.Status,
+                ProjectId = t.ProjectId,
+                ProjectName = t.Project != null ? t.Project.Name : null,
+                CompanyId = t.Project != null ? t.Project.CompanyId : null,
+                Assigners = t.TaskMembers
+                   .Where(tm => !tm.IsDeleted)
+                   .Select(tm => new UserDTO
+                   {
+                       Id = tm.User != null ? tm.User.Id : null,
+                       FullName = tm.User != null ? tm.User.FullName : null,
+                       Email = tm.User != null ? tm.User.Email : null,
+                   })
+                   .ToList()
+            });
             if (query.ProjectIds?.Any() == true)
             {
-                tasks = tasks.Where(t => query.ProjectIds.Contains(t.ProjectId));
+                dtoQuery = dtoQuery.Where(t => query.ProjectIds.Contains(t.ProjectId));
             }
 
             if (query.CompanyId.HasValue)
-                tasks = tasks.Where(x => x.CompanyId == query.CompanyId.Value);
+                dtoQuery = dtoQuery.Where(x => x.CompanyId == query.CompanyId.Value);
 
             if (!string.IsNullOrWhiteSpace(query.Status))
             {
@@ -124,12 +174,12 @@ namespace TA_Application.Services
                     .Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(s => s.Trim());
 
-                tasks = tasks.Where(t => statusList.Contains(t.Status));
+                dtoQuery = dtoQuery.Where(t => statusList.Contains(t.Status));
             }
 
             if (query.AssignedToIds?.Any() == true)
             {
-                tasks = tasks.Where(t =>
+                dtoQuery = dtoQuery.Where(t =>
                     t.Assigners!.Any(a => query.AssignedToIds.Contains(a.Id!))
                 );
             }
@@ -139,15 +189,15 @@ namespace TA_Application.Services
                     .Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(p => p.Trim());
 
-                tasks = tasks.Where(t => priorityList.Contains(t.Priority));
+                dtoQuery = dtoQuery.Where(t => priorityList.Contains(t.Priority));
             }
 
             if (!string.IsNullOrWhiteSpace(query.Search))
-                tasks = tasks.Where(x => x.Title!.Contains(query.Search));
+                dtoQuery = dtoQuery.Where(x => x.Title!.Contains(query.Search));
 
-            var totalCount = await tasks.CountAsync();
+            var totalCount = await dtoQuery.CountAsync();
 
-            var data = await tasks
+            var data = await dtoQuery
                 .Skip((query.PageNumber - 1) * query.PageSize)
                 .Take(query.PageSize)
                 .ToListAsync();
@@ -158,8 +208,7 @@ namespace TA_Application.Services
                 TotalCount = totalCount
             };
         }
-
-        public async Task<CompanyAssetsDTO> GetUsersAndProjectsAsync(int companyId, string role, string userId)
+        public async Task<CompanyAssetsDTO> GetUsersAndProjectsAsync(int companyId, string role, string userId, CancellationToken ct)
         {
             try
             {
@@ -169,20 +218,70 @@ namespace TA_Application.Services
                 if (role == "Owner")
                 {
                     // Get all company projects
-                    projects = await _projectRepository.GetAllAsync(companyId, userId);
+                    var projectEntities = await _projectRepository.GetAllAsync(companyId, userId, ct);
+                    projects = projectEntities.Select(t =>
+                    {
+                        var config = t.RepositoryConfigs?.FirstOrDefault();
 
-                    // Get all users in company
-                    users = await _companyRepository.GetTeamOfCompany(companyId);
+                        return new ProjectDTO
+                        {
+                            ProjectId = t.ProjectId,
+                            Name = t.Name,
+                            CompanyId = t.CompanyId,
+                            HasConfig = t.ProjectIntegrations != null && t.ProjectIntegrations.Any(),
+                            CreatedAt = t.CreatedAt.ToString("dd MMMM yyyy"),
+                            CreatedBy = t.CreatedBy?.FullName,
+                            TotalUsers = t.UserProjects?
+                                .Count(up => !up.IsDeleted && up.User != null && !up.User.isDeleted) ?? 0,
+                            TotalTasks = t.Tasks?
+                                .Count(task => !task.IsDeleted) ?? 0,
+                            IsAssigned = t.UserProjects?
+                                .Any(up => up.UserId == userId && !up.IsDeleted) ?? false,
+                            Provider = config?.Provider,
+                            RepoName = config?.RepoName,
+                            RepoOwner = config?.RepoOwner,
+                            DefaultBranch = config?.DefaultBranch,
+                            AccessToken = config?.AccessToken
+                        };
+                    }).ToList();
+                    var userEntities = await _companyRepository.GetTeamOfCompany(companyId, ct);
+                    users = userEntities.Select(u => new UserDTO
+                    {
+                        Id = u.User.Id,
+                        FullName = u.User.FullName,
+                        UserName = u.User.UserName,
+                        PhoneNumber = u.User.PhoneNumber,
+                        Role = u.RoleName
+                    }).ToList();
                 }
                 else if (role == "Developer")
                 {
-                    // Get only projects where developer is assigned
-                    projects = await _projectRepository.GetProjectsByUserIdAsync(companyId, userId);
+                    var projectEntities = await _projectRepository.GetAllAsync(companyId, userId, ct);
+                    projects = projectEntities.Select(t =>
+                    {
+                        var config = t.RepositoryConfigs?.FirstOrDefault();
 
-                    //// Optional: only return the current developer OR teammates in those projects
-                    //users = await _companyRepository.GetUsersByProjectIdsAsync(
-                    //    projects.Select(p => p.ProjectId).ToList()
-                    //);
+                        return new ProjectDTO
+                        {
+                            ProjectId = t.ProjectId,
+                            Name = t.Name,
+                            CompanyId = t.CompanyId,
+                            HasConfig = t.ProjectIntegrations != null && t.ProjectIntegrations.Any(),
+                            CreatedAt = t.CreatedAt.ToString("dd MMMM yyyy"),
+                            CreatedBy = t.CreatedBy?.FullName,
+                            TotalUsers = t.UserProjects?
+                                .Count(up => !up.IsDeleted && up.User != null && !up.User.isDeleted) ?? 0,
+                            TotalTasks = t.Tasks?
+                                .Count(task => !task.IsDeleted) ?? 0,
+                            IsAssigned = t.UserProjects?
+                                .Any(up => up.UserId == userId && !up.IsDeleted) ?? false,
+                            Provider = config?.Provider,
+                            RepoName = config?.RepoName,
+                            RepoOwner = config?.RepoOwner,
+                            DefaultBranch = config?.DefaultBranch,
+                            AccessToken = config?.AccessToken
+                        };
+                    }).ToList();
                 }
 
                 return new CompanyAssetsDTO
@@ -191,41 +290,71 @@ namespace TA_Application.Services
                     Assigners = users
                 };
             }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("GetUsersAndProjectsAsync was cancelled. CompanyId: {CompanyId}", companyId);
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching members!");
                 return new CompanyAssetsDTO();
             }
         }
-        public async Task<UpdateTaskDTO> UpdateAsync(UpdateTaskDTO dto)
+        public async Task<TaskDTO> UpdateAsync(UpdateTaskDTO dto, CancellationToken ct)
         {
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto), "Task is null");
+            var entity = new TA_Domain.Entities.Task
+            {
+                TaskId = dto.TaskId,
+                Status = dto.Status,
+                Title = dto.Title,
+                Description = dto.Description,
+                Priority = dto.Priority,
 
-            var task = await _tasksRepository.UpdateTaskAsync(dto);
+            };
+            var task = await _tasksRepository.UpdateTaskAsync(entity, ct);
             if (dto.Members != null && dto.Members.Any())
             {
                 foreach (var userId in dto.Members)
                 {
-                    var memberDto = new TaskMembersDTO
+                    var memberEntity = new TaskMember
                     {
                         TaskId = dto.TaskId,
                         UserId = userId
                     };
 
-                    await _tasksRepository.SaveTaskMembers(memberDto);
+                    await _tasksRepository.SaveTaskMembers(memberEntity, ct);
                 }
             }
-
-            return task;
+            var mapped = new TaskDTO
+            {
+                Status = dto.Status,
+                Title = dto.Title,
+                Description = dto.Description,
+                Priority = dto.Priority,
+            };
+            return mapped;
         }
-        public async Task<List<UserDTO>> GetTaskMembers(int taskId)
+        public async Task<List<UserDTO>> GetTaskMembers(int taskId, CancellationToken ct)
         {
             if (taskId == 0) throw new ArgumentNullException("Task Id is null", nameof(taskId));
             try
             {
-                var taskMembers = await _tasksRepository.GetTaskMembers(taskId);
-                return taskMembers;
+                var taskMembers = await _tasksRepository.GetTaskMembers(taskId, ct);
+                var mapped = taskMembers.Select(t => new UserDTO
+                {
+                    Id = t.UserId,
+                    FullName = t.User != null ? t.User.FullName : null,
+                    Email = t.User != null ? t.User.Email : null,
+                }).ToList();
+                return mapped;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("GetTaskMembers was cancelled. TaskId: {TaskId}", taskId);
+                throw;
             }
             catch (Exception ex)
             {
@@ -233,20 +362,44 @@ namespace TA_Application.Services
                 return new List<UserDTO>();
             }
         }
-        public async System.Threading.Tasks.Task RemoveMember(string id, int taskId)
+        public async Task<ResponseDTO> RemoveMember(string id, int taskId, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
             try
             {
-                await _tasksRepository.RemoveMember(id, taskId);
+                var result = await _tasksRepository.RemoveMember(id, taskId, ct);
+                if (result == null)
+                {
+                    return new ResponseDTO
+                    {
+                        Success = false,
+                        Message = "Error while removing member."
+                    };
+                }
 
+                return new ResponseDTO
+                {
+                    Success = true,
+                    Message = "Member removed successfully."
+                };
+
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("RemoveMember was cancelled. MemberId: {MemberId}", id);
+                throw;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing member!");
+                return new ResponseDTO
+                {
+                    Success = false,
+                    Message = "Error removing member!"
+                };
             }
         }
-        public async Task<ResponseDTO> SaveJiraWebhookTask(int projectId, JiraWebhookPayload payload)
+        public async Task<ResponseDTO> SaveJiraWebhookTask(int projectId, JiraWebhookPayload payload, CancellationToken ct)
         {
             try
             {
@@ -255,7 +408,7 @@ namespace TA_Application.Services
 
                 var issueKey = payload.Issue.Key;
 
-                var existing = await _tasksRepository.GetTaskByExternalIdAsync(issueKey);
+                var existing = await _tasksRepository.GetTaskByExternalIdAsync(issueKey, ct);
 
                 if (payload.WebhookEvent == "jira:issue_created")
                 {
@@ -268,7 +421,7 @@ namespace TA_Application.Services
                         };
                     }
 
-                    var task = new TaskDTO
+                    var task = new TA_Domain.Entities.Task
                     {
                         ProjectId = projectId,
                         ExternalId = issueKey,
@@ -279,7 +432,7 @@ namespace TA_Application.Services
                         Priority = payload.Issue.Fields.Priority?.Name
                     };
 
-                    await _tasksRepository.CreateTaskAsync(task);
+                    await _tasksRepository.CreateTaskAsync(task, ct);
 
                     return new ResponseDTO
                     {
@@ -298,12 +451,8 @@ namespace TA_Application.Services
                             Message = "Task not found for update"
                         };
                     }
-
-                    //// Optional: only update if status actually changed
-                    //var statusChanged = payload.Changelog?.Items?
-                    //    .Any(x => x.Field == "status") == true;
-
-                    var updatedTask = new UpdateTaskDTO
+                   
+                    var updatedTask = new TA_Domain.Entities.Task
                     {
                         TaskId = existing.TaskId,
                         Title = payload.Issue.Fields.Summary,
@@ -312,8 +461,7 @@ namespace TA_Application.Services
                         Priority = payload.Issue.Fields.Priority?.Name
                     };
 
-                    // 🔥 THIS was missing
-                    await _tasksRepository.UpdateTaskAsync(updatedTask);
+                    await _tasksRepository.UpdateTaskAsync(updatedTask, ct);
 
                     return new ResponseDTO
                     {
@@ -328,41 +476,45 @@ namespace TA_Application.Services
                     Message = "Event ignored"
                 };
             }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("SaveJiraWebhookTask was cancelled. ProjectId: {ProjectId}", projectId);
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving task from Jira webhook!");
                 throw;
             }
         }
-
-        public async Task<ResponseDTO> ProcessTrelloWebhookAsync(int projectId, TrelloWebhookPayload payload)
+        public async Task<ResponseDTO> ProcessTrelloWebhookAsync(int projectId, TrelloWebhookPayload payload, CancellationToken ct)
         {
             try
             {
                 var card = payload.Action.Data.Card;
 
-                var existingTask = await _tasksRepository.GetTaskByExternalIdAsync(card.Id);
+                var existingTask = await _tasksRepository.GetTaskByExternalIdAsync(card.Id, ct);
 
                 if (existingTask != null)
                 {
-                    var updatedTask = new UpdateTaskDTO
+                    var updatedTask = new TA_Domain.Entities.Task
                     {
                         TaskId = existingTask.TaskId,
                         Title = !string.IsNullOrWhiteSpace(card.Name)
                                ? card.Name
                                : existingTask.Title,
 
-                                            Description = !string.IsNullOrWhiteSpace(card.Desc)
+                        Description = !string.IsNullOrWhiteSpace(card.Desc)
                                ? card.Desc
                                : existingTask.Description,
 
-                                            Status = !string.IsNullOrWhiteSpace(payload.Action.Data.List?.Name)
+                        Status = !string.IsNullOrWhiteSpace(payload.Action.Data.List?.Name)
                                ? payload.Action.Data.List!.Name
                                : existingTask.Status
                     };
 
 
-                    await _tasksRepository.UpdateTaskAsync(updatedTask);
+                    await _tasksRepository.UpdateTaskAsync(updatedTask, ct);
 
                     return new ResponseDTO
                     {
@@ -372,10 +524,10 @@ namespace TA_Application.Services
                 }
                 else if (payload.Action.Type == "createCard")
                 {
-                    var newTask = new TaskDTO
+                    var newTask = new TA_Domain.Entities.Task
                     {
                         ProjectId = projectId,
-                        ExternalId = card.Id, 
+                        ExternalId = card.Id,
                         Title = card.Name,
                         Description = card.Desc,
                         Status = payload.Action.Data.List?.Name,
@@ -383,7 +535,7 @@ namespace TA_Application.Services
                         Priority = "Medium" // Trello doesn't have native priority, so this is just a placeholder
                     };
 
-                    await _tasksRepository.CreateTaskAsync(newTask);
+                    await _tasksRepository.CreateTaskAsync(newTask, ct);
                     return new ResponseDTO
                     {
                         Success = true,

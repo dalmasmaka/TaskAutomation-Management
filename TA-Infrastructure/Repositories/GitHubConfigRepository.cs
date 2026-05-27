@@ -1,10 +1,11 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
+using TA_Domain.Entities;
 using TA_Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace TA_Infrastructure.Repositories
 {
@@ -15,34 +16,17 @@ namespace TA_Infrastructure.Repositories
         {
             _context = context;
         }
-        public async Task<GitHubConfigDTO> GetByProjectId(int projectId)
+        public async Task<GitHubConfig> GetByProjectId(int projectId, CancellationToken ct)
         {
             return await _context.GitHubConfigs
-                .Where(c => c.ProjectId == projectId)
-                .Select(c => new GitHubConfigDTO
-                {
-                    ProjectId = c.ProjectId,
-                    RepoName = c.RepoName,
-                    RepoOwner = c.RepoOwner,
-                    Provider = c.Provider,
-                    DefaultBranch = c.DefaultBranch,
-                    AccessToken = c.AccessToken
-                })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(c => c.ProjectId == projectId && !c.IsDeleted, ct);
 
         }
 
-        public async Task<UserGitHubConfigDTO> GetUsersGitHubConfig(string userId)
+        public async Task<UserGitHubConfig> GetUsersGitHubConfig(string userId, CancellationToken ct)
         {
             return await _context.UserGitHubConfigs
-                .Where(c => c.UserId == userId)
-                .Select(c => new UserGitHubConfigDTO
-                {
-                    UserId = c.UserId,
-                    GitHubUsername = c.GitHubUsername,
-                    AccessToken = c.AccessToken
-                })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(c => c.UserId == userId && !c.IsDeleted, ct);
         }
     }
 }

@@ -29,21 +29,21 @@ namespace TA_API.Controllers
         [HttpPost("trello/{projectId}")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
-        public async Task<IActionResult> Receive(int projectId, [FromBody] TrelloWebhookPayload payload)
+        public async Task<IActionResult> Receive(int projectId, [FromBody] TrelloWebhookPayload payload, CancellationToken ct)
         {
             // Trello triggers different types (createCard, updateCard, etc.)
             // We pass the whole payload to let the service decide the logic
             if (payload?.Action?.Data?.Card != null)
             {
                 //kjo e kthen project ID direkt prej webhook ndersa ne jira funksionon per app dmth smundet me dite project id vec e qon idn e board te vet te na e rujm ExternalBoardId
-                await _taskService.ProcessTrelloWebhookAsync(projectId, payload);
+                await _taskService.ProcessTrelloWebhookAsync(projectId, payload, ct);
                 return Ok();
             }
 
             return Ok();
         }
         [HttpPost("jira/receive")]
-        public async Task<IActionResult> Receive([FromBody] System.Text.Json.JsonElement rawJson)
+        public async Task<IActionResult> Receive([FromBody] System.Text.Json.JsonElement rawJson, CancellationToken ct)
         {
             if (rawJson.ValueKind == JsonValueKind.Undefined ||
           rawJson.ValueKind == JsonValueKind.Null)
@@ -64,10 +64,10 @@ namespace TA_API.Controllers
                     var jiraProjectId = payload.Issue?.Fields?.Project?.Id;
                     if (string.IsNullOrEmpty(jiraProjectId)) return Ok();
 
-                    var localProject = await _projectService.GetProjectByExternalId(jiraProjectId);
+                    var localProject = await _projectService.GetProjectByExternalId(jiraProjectId, ct);
                     if (localProject != null)
                     {
-                        var result = await _taskService.SaveJiraWebhookTask(localProject.ProjectId, payload);
+                        var result = await _taskService.SaveJiraWebhookTask(localProject.ProjectId, payload, ct);
                     }
 
                 }

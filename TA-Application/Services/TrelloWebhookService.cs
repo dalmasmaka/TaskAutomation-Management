@@ -65,7 +65,7 @@ namespace TA_Application.Services
 
                 if (result?.Id != null)
                 {
-                    await _webhookRepo.SaveLogAsync(new ProjectWebhookDTO
+                    await _webhookRepo.SaveLogAsync(new ProjectWebhook
                     {
                         ExternalWebhookId = result.Id,
                         ProjectId = integration.ProjectId,

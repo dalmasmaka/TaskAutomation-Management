@@ -480,6 +480,48 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.ToTable("ProjectIntegrations", (string)null);
                 });
 
+            modelBuilder.Entity("TA_Domain.Entities.ProjectTeam", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("ProjectTeams", (string)null);
+                });
+
             modelBuilder.Entity("TA_Domain.Entities.ProjectWebhook", b =>
                 {
                     b.Property<int>("Id")
@@ -726,6 +768,93 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("TaskMembers", (string)null);
+                });
+
+            modelBuilder.Entity("TA_Domain.Entities.Team", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TeamName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("Teams", (string)null);
+                });
+
+            modelBuilder.Entity("TA_Domain.Entities.TeamMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TeamMembers", (string)null);
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.UserGitHubConfig", b =>
@@ -1046,6 +1175,37 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
+            modelBuilder.Entity("TA_Domain.Entities.ProjectTeam", b =>
+                {
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById");
+
+                    b.HasOne("TA_Domain.Entities.Project", "Project")
+                        .WithMany("ProjectTeams")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TA_Domain.Entities.Team", "Team")
+                        .WithMany("ProjectTeams")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Team");
+
+                    b.Navigation("UpdatedBy");
+                });
+
             modelBuilder.Entity("TA_Domain.Entities.ProjectWebhook", b =>
                 {
                     b.HasOne("TA_Domain.Entities.ApplicationUser", "CreatedBy")
@@ -1163,6 +1323,62 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TA_Domain.Entities.Team", b =>
+                {
+                    b.HasOne("TA_Domain.Entities.Company", "Company")
+                        .WithMany("Teams")
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById");
+
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById");
+
+                    b.Navigation("Company");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("TA_Domain.Entities.TeamMember", b =>
+                {
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TA_Domain.Entities.Team", "Team")
+                        .WithMany("TeamMembers")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TA_Domain.Entities.ApplicationUser", "User")
+                        .WithMany("TeamMembers")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Team");
+
+                    b.Navigation("UpdatedBy");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TA_Domain.Entities.UserGitHubConfig", b =>
                 {
                     b.HasOne("TA_Domain.Entities.ApplicationUser", "CreatedBy")
@@ -1245,12 +1461,16 @@ namespace TA_Infrastructure.Persistence.Migrations
 
                     b.Navigation("TaskMembers");
 
+                    b.Navigation("TeamMembers");
+
                     b.Navigation("UserProjects");
                 });
 
             modelBuilder.Entity("TA_Domain.Entities.Company", b =>
                 {
                     b.Navigation("Projects");
+
+                    b.Navigation("Teams");
 
                     b.Navigation("Users");
 
@@ -1260,6 +1480,8 @@ namespace TA_Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TA_Domain.Entities.Project", b =>
                 {
                     b.Navigation("ProjectIntegrations");
+
+                    b.Navigation("ProjectTeams");
 
                     b.Navigation("RepositoryConfigs");
 
@@ -1278,6 +1500,13 @@ namespace TA_Infrastructure.Persistence.Migrations
                     b.Navigation("PullRequests");
 
                     b.Navigation("TaskMembers");
+                });
+
+            modelBuilder.Entity("TA_Domain.Entities.Team", b =>
+                {
+                    b.Navigation("ProjectTeams");
+
+                    b.Navigation("TeamMembers");
                 });
 #pragma warning restore 612, 618
         }

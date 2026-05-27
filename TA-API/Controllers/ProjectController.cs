@@ -17,7 +17,7 @@ namespace TA_API.Controllers
             _projectService = projectService;
         }
         [HttpGet("projects")]
-        public async Task<IActionResult> GetAllProjects()
+        public async Task<IActionResult> GetAllProjects(CancellationToken ct)
         {
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
@@ -25,11 +25,11 @@ namespace TA_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
-            var result = await _projectService.GetAllAsync(companyId, userId);
+            var result = await _projectService.GetAllAsync(companyId, userId, ct);
             return Ok(result);
         }
         [HttpGet("userProjects")]
-        public async Task<IActionResult> GetUserProjectsAsync()
+        public async Task<IActionResult> GetUserProjectsAsync(CancellationToken ct)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var companyIdClaim = User.FindFirstValue("companyId");
@@ -37,40 +37,40 @@ namespace TA_API.Controllers
             var companyId = int.Parse(companyIdClaim);
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
-            var userProjects = _projectService.GetUserProjectsAsync(companyId, userId);
+            var userProjects = _projectService.GetUserProjectsAsync(companyId, userId, ct);
             return Ok(userProjects);
         }
 
         [HttpGet("availableProjects/{userId}")]
-        public async Task<IActionResult> GetAvailableProjectsPerUser(string userId)
+        public async Task<IActionResult> GetAvailableProjectsPerUser(string userId, CancellationToken ct)
         {
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
             var companyId = int.Parse(companyIdClaim);
-            var result = await _projectService.GetProjectsAvailableToAssignToUser(companyId, userId);
+            var result = await _projectService.GetProjectsAvailableToAssignToUser(companyId, userId, ct);
             return Ok(result);
         }
         [HttpGet("availableUsers/{projectId}")]
-        public async Task<IActionResult> GetAvailableUsersPerProject(int projectId)
+        public async Task<IActionResult> GetAvailableUsersPerProject(int projectId, CancellationToken ct)
         {
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
             var companyId = int.Parse(companyIdClaim);
-            var result = await _projectService.GetUsersAvailableToAssignToProjects(companyId, projectId);
+            var result = await _projectService.GetUsersAvailableToAssignToProject(companyId, projectId, ct);
             return Ok(result);
         }
         [HttpGet("membersPerProject/{projectId}")]
-        public async Task<IActionResult> GetAllMembers(int projectId)
+        public async Task<IActionResult> GetAllMembers(int projectId, CancellationToken ct)
         {
-            var result = await _projectService.GetMembersAsync(projectId);
+            var result = await _projectService.GetMembersAsync(projectId, ct);
             return Ok(result);
         }
         [HttpPost("assignUserToProjects")]
-        public async Task<IActionResult> AssignUserToProjects([FromBody] AssignUserProjectsDTO dto)
+        public async Task<IActionResult> AssignUserToProjects([FromBody] AssignUserProjectsDTO dto, CancellationToken ct)
         {
             try
             {
-               await _projectService.AssignUserToProjects(dto);
+               await _projectService.AssignUserToProjects(dto, ct);
 
                 return Ok(new
                 {
@@ -93,18 +93,18 @@ namespace TA_API.Controllers
             }
         }
         [HttpPost("assignUsersToProject")]
-        public async Task<IActionResult> AssignUsersToProject([FromBody] AssignProjectUsersDTO dto)
+        public async Task<IActionResult> AssignUsersToProject([FromBody] AssignProjectUsersDTO dto, CancellationToken ct)
         {
-            var result = await _projectService.AssignUsersToProject(dto);
+            var result = await _projectService.AssignUsersToProject(dto, ct);
             return Ok(result);
         }
         [HttpDelete("removeMember/{projectId}/{userId}")]
-        public async Task<IActionResult> DeleteUser(string userId, int projectId) {
-            await _projectService.RemoveMemberAsync(userId, projectId);
+        public async Task<IActionResult> DeleteUser(string userId, int projectId, CancellationToken ct) {
+            await _projectService.RemoveMemberAsync(userId, projectId, ct);
             return Ok();
         }
         [HttpPost("saveProject")]
-        public async Task<IActionResult> SaveProject(CreateProjectDTO dto)
+        public async Task<IActionResult> SaveProject(CreateProjectDTO dto, CancellationToken ct)
         {
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
@@ -113,7 +113,7 @@ namespace TA_API.Controllers
 
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
-            var result = await _projectService.SaveProjectAsync(userId, companyId, dto);
+            var result = await _projectService.SaveProjectAsync(userId, companyId, dto, ct);
             return Ok(result);
         }
     }

@@ -30,6 +30,7 @@
         public int CompanyId { get; set; }
         public DateTime? CreatedTime { get; set; }
         public string? UserId { get; set; }
+        public List<int> Teams { get; set; }
 
     }
     public class AssignProjectUsersDTO

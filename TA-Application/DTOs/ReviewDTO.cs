@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-
-namespace TA_Application.DTOs
+﻿namespace TA_Application.DTOs
 {
     public class ReviewDTO
     {

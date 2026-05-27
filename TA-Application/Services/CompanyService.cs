@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Repositories;
 using TA_Application.Interfaces.Services;
+using TA_Domain.Entities;
 using TA_Domain.Enums;
 
 namespace TA_Application.Services
@@ -19,7 +20,7 @@ namespace TA_Application.Services
             _logger = logger;
 
         }
-        public async Task<ResponseDTO> CheckInvitationCode(string invitationCode)
+        public async Task<ResponseDTO> CheckInvitationCode(string invitationCode, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(invitationCode))
             {
@@ -27,7 +28,7 @@ namespace TA_Application.Services
             }
             try
             {
-                var invitation = await _companyService.GetInvitationsByInvitationCode(invitationCode);
+                var invitation = await _companyService.GetInvitationByInvitationCode(invitationCode, ct);
                 if (invitation == null)
                 {
                     return new ResponseDTO { Success = false, Message = "Invalid invitation code. Cannot register your account" };
@@ -43,33 +44,44 @@ namespace TA_Application.Services
                 return new ResponseDTO { Success = false, Message = ex.Message };
             }
         }
-        public async Task<CompanyDTO> UpdateCompany(CompanyDTO companyDTO)
+        public async Task<CompanyDTO> UpdateCompany(CompanyDTO companyDTO, CancellationToken ct)
         {
             if (companyDTO == null)
                 throw new ArgumentException("Company is null");
 
             try
             {
-                await _companyService.UpdateCompanyAsync(companyDTO);
+                var entity = new Company
+                {
+                    Id = companyDTO.Id,
+                    Name = companyDTO.Name,
+                    OwnerId = companyDTO.OwnerId,
+                };
+                await _companyService.UpdateCompanyAsync(entity, ct);
                 return companyDTO;
-                //return new ResponseDTO
-                //{
-                //    Success = true,
-                //    Message = "Company has been updated"
-                //};
+               
             }
             catch (Exception ex)
             {
                 throw new ArgumentException(ex.Message, nameof(companyDTO));
             }
         }
-        public async Task<CompanyConfigDTO> SaveCompanyConfig(CompanyConfigDTO companyConfigDTO)
+        public async Task<CompanyConfigDTO> SaveCompanyConfig(CompanyConfigDTO companyConfigDTO, CancellationToken ct)
         {
             if (companyConfigDTO == null)
                 throw new ArgumentException("Company Configuration is null");
             try
             {
-                await _companyService.SaveCompanyConfigAsync(companyConfigDTO);
+                var entity = new CompanyIntegrationConfig
+                {
+                    Id = companyConfigDTO.Id,
+                    CompanyId = companyConfigDTO.CompanyId,
+                    Provider = companyConfigDTO.Provider,
+                    ClientId = companyConfigDTO.ClientId,
+                    ClientSecret = companyConfigDTO.ClientSecret,
+                    RedirectUri = companyConfigDTO.RedirectUri
+                };
+                await _companyService.SaveCompanyConfigAsync(entity, ct);
                 return companyConfigDTO;
                 
             }
@@ -78,14 +90,19 @@ namespace TA_Application.Services
                 throw new ArgumentException(ex.Message, nameof(companyConfigDTO));
             }
         }
-        public async Task<CompanyDTO> GetCompanyById(int id)
+        public async Task<CompanyDTO> GetCompanyById(int id, CancellationToken ct)
         {
-            //if (string.IsNullOrEmpty(id))
-            //    throw new ArgumentException("User is null", nameof(userId));
             try
             {
-                var company = await _companyService.GetCompanyById(id);
-                return company;
+                var company = await _companyService.GetCompanyById(id, ct);
+                return new CompanyDTO
+                {
+                    Id = company.Id,
+                    Name = company.Name,
+                    OwnerId = company.OwnerId,
+                    OwnerName = company.User.FullName
+                    
+                };
             }
             catch (Exception ex)
             {
@@ -93,40 +110,66 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<List<CompanyConfigDTO>> GetCompanyConfig(int companyId)
+        public async Task<List<CompanyConfigDTO>> GetCompanyConfig(int companyId, CancellationToken ct)
         {
-            if (companyId < 0)
-                throw new ArgumentException("Company Id is null", nameof(companyId));
+            if (companyId <= 0)
+                throw new ArgumentException("Invalid Company Id", nameof(companyId));
+
             try
             {
-                var companyConfig = await _companyService.GetCompanyConfig(companyId);
-                return companyConfig;
+                var companyConfigs = await _companyService.GetCompanyConfig(companyId, ct);
+
+                return companyConfigs.Select(companyConfig => new CompanyConfigDTO
+                {
+                    Id = companyConfig.Id,
+                    CompanyId = companyConfig.CompanyId,
+                    Provider = companyConfig.Provider,
+                    ClientId = companyConfig.ClientId,
+                    ClientSecret = companyConfig.ClientSecret,
+                    RedirectUri = companyConfig.RedirectUri
+                }).ToList();
             }
             catch (Exception ex)
             {
-                throw new ArgumentException(ex.Message, nameof(companyId));
+                throw new Exception("Error retrieving company configs", ex);
             }
         }
 
-        public async Task<List<UserDTO>> GetTeamOfCompany(int companyId)
+        public async Task<List<UserDTO>> GetTeamOfCompany(int companyId, CancellationToken ct)
         {
             if (companyId == 0) throw new ArgumentException(nameof(companyId));
             try
             {
-                var result = await _companyService.GetTeamOfCompany(companyId);
-                return result;
+                var result = await _companyService.GetTeamOfCompany(companyId, ct);
+                return result.Select(user => new UserDTO
+                {
+                    Id = user.User.Id,
+                    FullName = user.User.FullName,
+                    UserName = user.User.UserName,   
+                    PhoneNumber = user.User.PhoneNumber,
+                    Role = user.RoleName,
+                    Email = user.User.Email
+                }).ToList();
             }
             catch (Exception ex)
             {
                 throw new ArgumentException(ex.Message, nameof(companyId));
             }
         }
-        public async Task<InvitationsDTO> GetInvitationByCode(string code)
+        public async Task<InvitationsDTO> GetInvitationByCode(string code, CancellationToken ct)
         {
             try
             {
-                var result = await _companyService.GetInvitationByCode(code);
-                return result;
+                var result = await _companyService.GetInvitationByCode(code, ct);
+                return new InvitationsDTO
+                {
+                    Id = result.Id,
+                    InvitationCode = result.InvitationCode,
+                    StringRole = result.Role.ToString(),
+                    CompanyId = result.CompanyId,
+                    Role = result.Role,
+                    ExpirationDate = result.ExpirationDate,
+                };
                 
             }
             catch (Exception ex)
@@ -136,11 +179,11 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<List<InvitationsDTO>> GetInvitations(int companyId)
+        public async Task<List<InvitationsDTO>> GetInvitations(int companyId, CancellationToken ct)
         {
             try
             {
-                var result = await _companyService.GetInvitations(companyId);
+                var result = await _companyService.GetInvitations(companyId, ct);
 
                 return result.Select(inv => new InvitationsDTO
                 {
@@ -151,7 +194,7 @@ namespace TA_Application.Services
                         ? "Active"
                         : "Expired",
                     Role = inv.Role,
-                    StringRole = inv.StringRole
+                    StringRole = inv.Role.ToString()
                 }).ToList();
             }
             catch (Exception ex)
@@ -171,12 +214,12 @@ namespace TA_Application.Services
             return new string(data.Select(b => chars[b % chars.Length]).ToArray());
         }
 
-        public async Task<InvitationsDTO> GenerateCodeAsync(int companyId, DateTime expiryDate, CompanyRole role)
+        public async Task<InvitationsDTO> GenerateCodeAsync(int companyId, DateTime expiryDate, CompanyRole role, CancellationToken ct)
         {
             try
             {
                 var generatedCode = GenerateSecureCode();
-                var dto = new InvitationsDTO
+                var dto = new WorkspaceInvitations
                 {
                     CompanyId = companyId,
                     ExpirationDate = expiryDate,
@@ -184,7 +227,7 @@ namespace TA_Application.Services
                     Role = role
                     
                 };
-                var code =  await _companyService.GenerateCodeAsync(dto);
+                var code =  await _companyService.GenerateCodeAsync(dto, ct);
                 var updatedList = new InvitationsDTO
                 {
                     CompanyId = code.CompanyId,
@@ -203,17 +246,17 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<ResponseDTO> DeleteConfig(int id)
+        public async Task<ResponseDTO> DeleteConfig(int id, CancellationToken ct)
         {
             if (id == 0) throw new ArgumentNullException(nameof(id));
             try
             {
-                var existingUser = await _companyService.GetCompanyConfig(id);
+                var existingUser = await _companyService.GetCompanyConfig(id, ct);
                 if (existingUser == null)
                 {
                     return new ResponseDTO { Success = false, Message = "Company config does not exist." };
                 }
-                await _companyService.DeleteConfigAsync(id);
+                await _companyService.DeleteConfigAsync(id, ct);
                 return new ResponseDTO { Success = true, Message = "Configuration deleted successfully." };
             }
             catch (Exception ex)
@@ -223,13 +266,13 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<ResponseDTO> DeleteCompanyAsync(int companyId)
+        public async Task<ResponseDTO> DeleteCompanyAsync(int companyId, CancellationToken ct)
         {
             if (companyId == 0) throw new ArgumentNullException(nameof(companyId));
 
             try
             {
-                var existingCom = await _companyService.GetCompanyById(companyId);
+                var existingCom = await _companyService.GetCompanyById(companyId, ct);
 
                 if (existingCom == null)
                 {
@@ -240,9 +283,9 @@ namespace TA_Application.Services
                     };
                 }
 
-                await _appUserRepository.DeleteUsersByCompanyIdAsync(companyId);
+                await _appUserRepository.DeleteUsersByCompanyIdAsync(companyId, ct);
 
-                await _companyService.DeleteCompanyAsync(companyId);
+                await _companyService.DeleteCompanyAsync(companyId, ct);
 
                 return new ResponseDTO
                 {

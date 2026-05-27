@@ -22,7 +22,7 @@ namespace TA_Application.Services
         public async Task<string> GetAuthUrlAsync(int projectId, int companyId)
             => await _httpClient.GetAuthorizationUrlAsync(_config.ClientId!, _config.RedirectUri!, projectId, companyId);
 
-        public async System.Threading.Tasks.Task AuthorizeAndSaveAsync(string code, int projectId)
+        public async System.Threading.Tasks.Task AuthorizeAndSaveAsync(string code, int projectId, CancellationToken ct)
         {
             // 1. Exchange the temporary code for a long-lived Access Token
             var accessToken = await _httpClient.ExchangeCodeForTokenAsync(
@@ -32,7 +32,7 @@ namespace TA_Application.Services
             var cloudId = await _httpClient.GetCloudIdAsync(accessToken.AccessToken);
             
             // 3. Save or Update the ProjectIntegration record
-            var integration = new ProjectIntegrationDTO
+            var integration = new ProjectIntegration
             {
                 ProjectId = projectId,
                 Provider = "Jira",
@@ -43,22 +43,22 @@ namespace TA_Application.Services
                 ExpiresAt = DateTime.UtcNow.AddHours(1) // Jira tokens usually last 1 hour
             };
 
-            await _projectRepo.SaveAsync(integration);
+            await _projectRepo.SaveAsync(integration, ct);
          
            
         }
-        public async Task<List<Board>> GetBoardsAsync(int projectId)
+        public async Task<List<Board>> GetBoardsAsync(int projectId, CancellationToken ct)
         {
-            var integration = await _projectRepo.GetByProjectIdAsync(projectId);
+            var integration = await _projectRepo.GetByProjectIdAsync(projectId, ct);
 
             if (integration == null || string.IsNullOrEmpty(integration.AccessToken))
                 throw new Exception("Project is not integrated with Jira.");
 
             return await _httpClient.GetBoardsAsync(integration.AccessToken, integration.CloudId!);
         }
-        public async System.Threading.Tasks.Task SaveBoardSelectionAsync(int projectId, string boardId, string key)
+        public async System.Threading.Tasks.Task SaveBoardSelectionAsync(int projectId, string boardId, string key, CancellationToken ct)
         {
-            var integration = await _projectRepo.GetByProjectIdAsync(projectId);
+            var integration = await _projectRepo.GetByProjectIdAsync(projectId, ct);
 
             if (integration == null)
                 throw new Exception("Integration record not found.");
@@ -66,7 +66,18 @@ namespace TA_Application.Services
             // Update the ExternalBoardId (Ensure this property exists in your DTO/Entity)
             integration.ExternalBoardId = boardId;
             integration.ExternalId = key;
-            await _projectRepo.SaveAsync(integration);
+            await _projectRepo.SaveAsync(integration, ct);
+            var dto = new ProjectIntegrationDTO
+            {
+                ProjectId = integration.ProjectId,
+                AccessToken = integration.AccessToken,
+                Provider = integration.Provider,
+                RefreshToken = integration.RefreshToken,
+                ExternalBoardId = integration.ExternalBoardId,
+                ExternalId = integration.ExternalId,
+                CloudId = integration.CloudId
+
+            };
             var result = await _httpClient.GetJiraTasksAsync(
                    integration.AccessToken!,
                    integration.CloudId!,
@@ -74,19 +85,19 @@ namespace TA_Application.Services
                    projectId
                );
 
-            await _projectRepo.SaveTasksAsync(result);
-            var webhookService = await _webhookFactory.GetAsync("Jira", integration.CompanyId);
-            await webhookService.RegisterAsync(integration);
+            await _projectRepo.SaveTasksAsync(result, ct);
+            var webhookService = await _webhookFactory.GetAsync("Jira", integration.Project.CompanyId);
+            await webhookService.RegisterAsync(dto);
         }
 
-        public async Task<ResponseDTO> SaveTasks(int projectId)
+        public async Task<bool> SaveTasks(int projectId, CancellationToken ct)
         {
             try
             {
-                var integration = await _projectRepo.GetByProjectIdAsync(projectId);
+                var integration = await _projectRepo.GetByProjectIdAsync(projectId, ct);
                 if (integration == null)
                 {
-                    return new ResponseDTO { Success = false, Message = "Integration not found." };
+                   return false;
                 }
 
                 var result = await _httpClient.GetJiraTasksAsync(
@@ -96,18 +107,14 @@ namespace TA_Application.Services
                   projectId
               );
                
-                await _projectRepo.SaveTasksAsync(result);
-                
+                await _projectRepo.SaveTasksAsync(result, ct);
 
-                return new ResponseDTO
-                {
-                    Success = true,
-                    Message = $"Successfully imported {result.Count} tasks from Jira.",
-                };
+
+                return true;
             }
             catch (Exception ex)
             {
-                return new ResponseDTO { Success = false, Message = ex.Message };
+                throw ex;
             }
         }
     }

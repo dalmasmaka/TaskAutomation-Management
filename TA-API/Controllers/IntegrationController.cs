@@ -1,5 +1,4 @@
-﻿using Azure.Core;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using TA_Application.DTOs;
 using TA_Application.Services;
 
@@ -22,7 +21,7 @@ namespace TA_API.Controllers
         }
 
         [HttpGet("callback/{provider}")]
-        public async Task<IActionResult> Callback(string provider, string code, string state)
+        public async Task<IActionResult> Callback(string provider, string code, string state, CancellationToken ct)
         {
             if (provider == "jira")
             {
@@ -36,7 +35,7 @@ namespace TA_API.Controllers
 
                 var service = await _factory.GetProvider(provider, companyId);
 
-                await service.AuthorizeAndSaveAsync(code, projectId);
+                await service.AuthorizeAndSaveAsync(code, projectId, ct);
 
                 return Content(@"
             <script>
@@ -48,35 +47,35 @@ namespace TA_API.Controllers
             return BadRequest("Unsupported provider");
         }
         [HttpPost("trello/token")]
-        public async Task<IActionResult> SaveTrelloToken([FromBody] TrelloTokenRequest request)
+        public async Task<IActionResult> SaveTrelloToken([FromBody] TrelloTokenRequest request, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(request.Token))
                 return BadRequest("Token is null");
 
             var service = await _factory.GetProvider("trello", request.CompanyId);
 
-            await service.AuthorizeAndSaveAsync(request.Token, request.ProjectId);
+            await service.AuthorizeAndSaveAsync(request.Token, request.ProjectId, ct);
 
             return Ok();
         }
         [HttpGet("boards/{provider}/{projectId}/{companyId}")]
-        public async Task<IActionResult> GetBoards(string provider, int projectId, int companyId)
+        public async Task<IActionResult> GetBoards(string provider, int projectId, int companyId, CancellationToken ct)
         {
             var service = await _factory.GetProvider(provider, companyId);
 
-            var boards = await service.GetBoardsAsync(projectId);
+            var boards = await service.GetBoardsAsync(projectId, ct);
 
             return Ok(boards);
         }
         [HttpPost("link-board")]
-        public async Task<IActionResult> LinkBoard([FromBody] LinkBoardRequest request)
+        public async Task<IActionResult> LinkBoard([FromBody] LinkBoardRequest request, CancellationToken ct)
         {
             // 1. Get the provider service
             var service = await _factory.GetProvider(request.Provider, request.CompanyId);
 
             // 2. Save the board ID (This updates the Integration record in DB)
-            await service.SaveBoardSelectionAsync(request.ProjectId, request.BoardId, request.ProjectKey);
-
+            await service.SaveBoardSelectionAsync(request.ProjectId, request.BoardId, request.ProjectKey, ct);
+           
             return Ok(new
             {
                 message = "Board linked & tasks imported successfully",

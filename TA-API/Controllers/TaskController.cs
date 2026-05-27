@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.DotNet.Scaffolding.Shared.Messaging;
 using System.Security.Claims;
 using TA_Application.DTOs;
 using TA_Application.Interfaces.Services;
@@ -21,7 +19,7 @@ namespace TA_API.Controllers
         }
         [Authorize]
         [HttpGet("tasks")]
-        public async Task<IActionResult> GetTasksAsync([FromQuery] TaskQuery query)
+        public async Task<IActionResult> GetTasksAsync([FromQuery] TaskQuery query, CancellationToken ct)
         {
             var companyIdClaim = User.FindFirstValue("companyId");
             var role = User.FindFirstValue(ClaimTypes.Role);
@@ -39,12 +37,12 @@ namespace TA_API.Controllers
             if (!int.TryParse(companyIdClaim, out var companyId))
                 return BadRequest("Invalid companyId claim");
 
-            var result = await _tasksService.GetTasksAsync(query, userId, role, companyId);
+            var result = await _tasksService.GetTasksAsync(query, userId, role, companyId, ct);
 
             return Ok(result);
         }
         [HttpGet("companyAssets")]
-        public async Task<ActionResult> GetUsersAndProjectsAsync()
+        public async Task<ActionResult> GetUsersAndProjectsAsync(CancellationToken ct)
         {
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
@@ -57,17 +55,17 @@ namespace TA_API.Controllers
             if (string.IsNullOrWhiteSpace(role))
                 return Unauthorized("Role claim missing");
 
-            var result = await _tasksService.GetUsersAndProjectsAsync(companyId, role, userId);
+            var result = await _tasksService.GetUsersAndProjectsAsync(companyId, role, userId, ct);
             return Ok(result);
 
         }
 
         [HttpDelete("deleteTask/{taskId}")]
-        public async Task<IActionResult> DeleteAsync(int taskId)
+        public async Task<IActionResult> DeleteAsync(int taskId, CancellationToken ct)
         {
             try
             {
-                await _tasksService.DeleteAsync(taskId);
+                await _tasksService.DeleteAsync(taskId, ct);
                 return Ok(new
                 {
                     Message = "Task deleted successfully!"
@@ -90,9 +88,9 @@ namespace TA_API.Controllers
 
         }
         [HttpPut("updateTask")]
-        public async Task<IActionResult> UpdateAsync([FromBody] UpdateTaskDTO dto)
+        public async Task<IActionResult> UpdateAsync([FromBody] UpdateTaskDTO dto, CancellationToken ct)
         {
-            var result = await _tasksService.UpdateAsync(dto);
+            var result = await _tasksService.UpdateAsync(dto, ct);
             return Ok(result);
         }
         [HttpGet("projectTasks/{projectId}")]
@@ -101,17 +99,17 @@ namespace TA_API.Controllers
             return Ok();
         }
         [HttpGet("assignees/{taskId}")]
-        public async Task<IActionResult> GetAllMembersAsync(int taskId)
+        public async Task<IActionResult> GetAllMembersAsync(int taskId, CancellationToken ct)
         {
-            var result = await _tasksService.GetAllMembersAsync(taskId);
+            var result = await _tasksService.GetAllMembersAsync(taskId, ct);
             return Ok(result);
         }
         [HttpDelete("removeMember/{userId}/{taskId}")]
-        public async Task<IActionResult> RemoveMemberAsync(string userId, int taskId)
+        public async Task<IActionResult> RemoveMemberAsync(string userId, int taskId, CancellationToken ct)
         {
             try
             {
-                await _tasksService.RemoveMember(userId, taskId);
+                await _tasksService.RemoveMember(userId, taskId, ct);
                 return Ok(new
                 {
                     Message = "Member removed successfully!"

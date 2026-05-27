@@ -16,74 +16,81 @@ namespace TA_Infrastructure.Repositories
         {
             _context = context;
         }
-        public async System.Threading.Tasks.Task AddAsync(ApplicationUser user)
+        public async Task<ApplicationUser> AddAsync(ApplicationUser user, CancellationToken ct)
         {
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
+            var result = await _context.Users.AddAsync(user, ct);
+
+            await _context.SaveChangesAsync(ct);
+
+            return result.Entity;
         }
 
-        public async System.Threading.Tasks.Task ChangePassword(string userId, string newPassword)
+        public async Task<bool> ChangePassword(string userId, string newPassword, CancellationToken ct)
         {
             var user = await _context.Users
-          .FirstOrDefaultAsync(u => u.Id == userId);
+          .FirstOrDefaultAsync(u => u.Id == userId, ct);
 
-            ArgumentNullException.ThrowIfNull(user);
+            if (user == null)
+                return false;
             user.PasswordHash = newPassword;
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync(ct);
+            return true;
 
-            await _context.SaveChangesAsync();
         }
 
-        public async Task<string> GetPasswordByUserIdAsync(string userId)
+        public async Task<string> GetPasswordByUserIdAsync(string userId, CancellationToken ct)
         {
             var user = await _context.Users
                 .Where(u => u.Id == userId)
                 .Select(u => u.PasswordHash)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(ct);
 
             ArgumentNullException.ThrowIfNull(user);
 
             return user;
         }
 
-        public async System.Threading.Tasks.Task DeleteUser(string id)
+        public async Task<bool> DeleteUser(string id, CancellationToken ct)
         {
             var existing = await _context.Users
                 .FirstOrDefaultAsync(p => p.Id == id);
+            if (existing == null)
+                return false;
+            existing.isDeleted = true;
 
-            if (existing != null)
-            {
-                existing.isDeleted = true;
+            _context.Users.Update(existing);
+            await _context.SaveChangesAsync(ct);
 
-                await _context.SaveChangesAsync();
-            }
+            return true;
         }
 
-        public async Task<IEnumerable<ApplicationUser>> GetAllUsers()
+        public async Task<IEnumerable<ApplicationUser>> GetAllUsers(CancellationToken ct)
         {
-            return await _context.Users.ToListAsync();
+            return await _context.Users.ToListAsync(ct);
         }
 
-        public async Task<ApplicationUser> GetByEmailAsync(string email)
+        public async Task<ApplicationUser> GetByEmailAsync(string email, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(email);
 
             return await _context.Users
-         .FirstOrDefaultAsync(u => u.Email == email);
+         .FirstOrDefaultAsync(u => u.Email == email, ct);
         }
 
-        public async Task<int> GetTotalUsersCountAsync()
+        public async Task<int> GetTotalUsersCountAsync(CancellationToken ct)
         {
-            return await _context.Users.CountAsync();
+            return await _context.Users.CountAsync(ct);
         }
 
-        public async Task<ApplicationUser> GetUserById(string id)
+        public async Task<ApplicationUser> GetUserById(string id, CancellationToken ct)
         {
             var users = await _context.Users.FindAsync(id);
             ArgumentNullException.ThrowIfNull(users);
             return users;
         }
 
-        public async Task<ApplicationUser> UpdateUser(ApplicationUser user)
+        public async Task<ApplicationUser> UpdateUser(ApplicationUser user, CancellationToken ct)
         {
             _context.Users.Attach(user);
             _context.Entry(user).State = EntityState.Modified;
@@ -92,65 +99,49 @@ namespace TA_Infrastructure.Repositories
             return user;
         }
 
-        public async System.Threading.Tasks.Task DeleteUsersByCompanyIdAsync(int companyId)
+        public async Task<bool> DeleteUsersByCompanyIdAsync(int companyId, CancellationToken ct)
         {
             var users = await _context.Users
                 .Where(u => u.CompanyId == companyId && !u.isDeleted)
-                .ToListAsync();
+                .ToListAsync(ct);
 
-            if (users.Any()) return;
+            if (!users.Any())
+                return false;
 
             foreach (var user in users)
             {
-                user.isDeleted = true; 
+                user.isDeleted = true;
             }
 
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
+            return true;
         }
 
-        public async Task<UserGitHubDTO> GetUserGitHubInfo(string userId)
+        public async Task<TA_Domain.Entities.UserGitHubConfig> GetUserGitHubInfo(string userId, CancellationToken ct)
         {
-            return await _context.UserGitHubConfigs.Where(g => g.UserId == userId)
-                .Select(t => new UserGitHubDTO
-                {
-                    Id = t.Id,
-                    Username = t.GitHubUsername,
-                    AccessToken = t.AccessToken
-                }).FirstOrDefaultAsync();
+            return await _context.UserGitHubConfigs.Where(g => g.UserId == userId).FirstOrDefaultAsync(ct);
         }
 
-        public async Task<UserGitHubDTO> SaveUserGitHubInfo(UserGitHubDTO userGitHubDTO)
+        public async Task<TA_Domain.Entities.UserGitHubConfig> SaveUserGitHubInfo(TA_Domain.Entities.UserGitHubConfig userGitHub, CancellationToken ct)
         {
-            var existingUser = await _context.UserGitHubConfigs
-         .FirstOrDefaultAsync(u => u.Id == userGitHubDTO.Id);
-
-            if (existingUser != null)
+            if (userGitHub.Id == 0)
             {
-                existingUser.GitHubUsername = userGitHubDTO.Username;
-                existingUser.AccessToken = userGitHubDTO.AccessToken;
-                existingUser.UpdatedAt = DateTime.UtcNow;
-                existingUser.UpdatedById = userGitHubDTO.UserId;
-
-                _context.UserGitHubConfigs.Update(existingUser);
-                userGitHubDTO.Id = existingUser.Id;
+                await _context.UserGitHubConfigs.AddAsync(userGitHub, ct);
             }
             else
             {
-                var newUser = new TA_Domain.Entities.UserGitHubConfig
-                {
-                    GitHubUsername = userGitHubDTO.Username,
-                    AccessToken = userGitHubDTO.AccessToken,
-                    CreatedAt = DateTime.UtcNow,
-                    UserId = userGitHubDTO.UserId
-                };
+                var existing = await _context.UserGitHubConfigs
+                    .FirstOrDefaultAsync(x => x.Id == userGitHub.Id, ct);
 
-                await _context.UserGitHubConfigs.AddAsync(newUser);
-                userGitHubDTO.Id = newUser.Id;
+                if (existing == null)
+                    throw new KeyNotFoundException("UserGitHubConfig not found");
+
+                existing.GitHubUsername = userGitHub.GitHubUsername;
+                existing.AccessToken = userGitHub.AccessToken;
             }
 
-            await _context.SaveChangesAsync();
-            
-            return userGitHubDTO;
+            await _context.SaveChangesAsync(ct);
+            return userGitHub;
         }
     }
 }

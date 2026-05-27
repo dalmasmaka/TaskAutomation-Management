@@ -17,6 +17,7 @@ namespace TA_Domain.Entities
         public ICollection<ProjectIntegration>? ProjectIntegrations { get; set; }
         public ICollection<UserProject>? UserProjects { get; set; }
         public ICollection<GitHubConfig>? RepositoryConfigs { get; set; }
+        public ICollection<ProjectTeam> ProjectTeams { get; set; } = new List<ProjectTeam>();
 
     }
 }

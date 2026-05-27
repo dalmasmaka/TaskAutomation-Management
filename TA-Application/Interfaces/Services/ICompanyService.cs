@@ -8,17 +8,17 @@ namespace TA_Application.Interfaces.Services
 {
     public interface ICompanyService
     {
-        Task<ResponseDTO>CheckInvitationCode(string invitationCode);
-        Task<CompanyDTO> UpdateCompany(CompanyDTO companyDTO);
-        Task<CompanyConfigDTO> SaveCompanyConfig(CompanyConfigDTO companyConfigDTO);
-        Task<CompanyDTO> GetCompanyById(int id);
-        Task<List<CompanyConfigDTO>> GetCompanyConfig(int companyId);
-        Task<List<UserDTO>>GetTeamOfCompany(int companyId);
-        Task<List<InvitationsDTO>>GetInvitations(int companyId);
+        Task<ResponseDTO>CheckInvitationCode(string invitationCode, CancellationToken ct);
+        Task<CompanyDTO> UpdateCompany(CompanyDTO companyDTO, CancellationToken ct);
+        Task<CompanyConfigDTO> SaveCompanyConfig(CompanyConfigDTO companyConfigDTO, CancellationToken ct);
+        Task<CompanyDTO> GetCompanyById(int id, CancellationToken ct);
+        Task<List<CompanyConfigDTO>> GetCompanyConfig(int companyId, CancellationToken ct);
+        Task<List<UserDTO>>GetTeamOfCompany(int companyId, CancellationToken ct);
+        Task<List<InvitationsDTO>>GetInvitations(int companyId, CancellationToken ct);
         string GenerateSecureCode(int length = 8);
-        Task<InvitationsDTO> GenerateCodeAsync(int companyId, DateTime expiryDate, CompanyRole role);
-        Task<ResponseDTO> DeleteConfig(int id);
-        Task<ResponseDTO> DeleteCompanyAsync(int companyId);
-        Task<InvitationsDTO> GetInvitationByCode(string code);
+        Task<InvitationsDTO> GenerateCodeAsync(int companyId, DateTime expiryDate, CompanyRole role, CancellationToken ct);
+        Task<ResponseDTO> DeleteConfig(int id, CancellationToken ct);
+        Task<ResponseDTO> DeleteCompanyAsync(int companyId, CancellationToken ct);
+        Task<InvitationsDTO> GetInvitationByCode(string code, CancellationToken ct);
     }
 }

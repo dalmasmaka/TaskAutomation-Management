@@ -19,73 +19,73 @@ namespace TA_API.Controllers
         }
         [Authorize(Roles = "Owner")]
         [HttpGet("company")]
-        public async Task<IActionResult> GetCompanyByOwner() {
+        public async Task<IActionResult> GetCompanyByOwner(CancellationToken ct) {
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
             var companyId = int.Parse(companyIdClaim);
-            var result = await _companyService.GetCompanyById(companyId);
+            var result = await _companyService.GetCompanyById(companyId, ct);
             return Ok(result);
         }
         [HttpPut("updateCompany")]
-        public async Task<IActionResult> UpdateBasicInformation([FromBody] CompanyDTO companyDTO)
+        public async Task<IActionResult> UpdateBasicInformation([FromBody] CompanyDTO companyDTO, CancellationToken ct)
         {
-            var result = await _companyService.UpdateCompany(companyDTO);
+            var result = await _companyService.UpdateCompany(companyDTO, ct);
             return Ok(result);
 
         }
         [Authorize(Roles = "Owner")]
         [HttpPut("saveCompanyConfig")]
-        public async Task<IActionResult> SaveCompanyConfiguration([FromBody] CompanyConfigDTO companyDTO)
+        public async Task<IActionResult> SaveCompanyConfiguration([FromBody] CompanyConfigDTO companyDTO, CancellationToken ct)
         {
-            var result = await _companyService.SaveCompanyConfig(companyDTO);
+            var result = await _companyService.SaveCompanyConfig(companyDTO, ct);
             return Ok(result);
         }
         [Authorize(Roles = "Owner")]
         [HttpGet("companyConfig/{id}")]
-        public async Task<IActionResult> GetCompanyConfigurations(int id)
+        public async Task<IActionResult> GetCompanyConfigurations(int id, CancellationToken ct)
         {
-            var result = await _companyService.GetCompanyConfig(id);
+            var result = await _companyService.GetCompanyConfig(id, ct);
             return Ok(result);
         }
         [HttpGet("companyTeam")]
-        public async Task<IActionResult> GetCompanyTeam()
+        public async Task<IActionResult> GetCompanyTeam(CancellationToken ct)
         {
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
             var companyId = int.Parse(companyIdClaim);
-            var result = await _companyService.GetTeamOfCompany(companyId);
+            var result = await _companyService.GetTeamOfCompany(companyId, ct);
             return Ok(result);
         }
         [Authorize(Roles = "Owner")]
         [HttpGet("codes")]
-        public async Task<IActionResult> GetInvitationsCode() {
+        public async Task<IActionResult> GetInvitationsCode(CancellationToken ct) {
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
             var companyId = int.Parse(companyIdClaim);
-            var result = await _companyService.GetInvitations(companyId);
+            var result = await _companyService.GetInvitations(companyId, ct);
             return Ok(result);
         }
-        //[Authorize(Roles = "Owner")]
+        [Authorize(Roles = "Owner")]
         [HttpPost("generateCode")]
-        public async Task<IActionResult> GenerateCode([FromBody] GenerateInvitationDTO dto) {
+        public async Task<IActionResult> GenerateCode([FromBody] GenerateInvitationDTO dto, CancellationToken ct) {
 
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
             var companyId = int.Parse(companyIdClaim);
-            var result = await _companyService.GenerateCodeAsync(companyId, dto.ExpiryDate, dto.Role);
+            var result = await _companyService.GenerateCodeAsync(companyId, dto.ExpiryDate, dto.Role, ct);
             return Ok(result);  
         }
         [Authorize(Roles = "Owner")]
         [HttpDelete("deleteConfig/{id}")]
-        public async Task<IActionResult> Delete(int id) {
-            await _companyService.DeleteConfig(id);
+        public async Task<IActionResult> Delete(int id, CancellationToken ct) {
+            await _companyService.DeleteConfig(id, ct);
             return Ok();
         }
         [Authorize(Roles = "Owner")]
         [HttpDelete("deleteCompany/{id}")]
-        public async Task<IActionResult> DeleteCompany(int id)
+        public async Task<IActionResult> DeleteCompany(int id, CancellationToken ct)
         {
-            await _companyService.DeleteCompanyAsync(id);
+            await _companyService.DeleteCompanyAsync(id, ct);
             return Ok();
         }
     }
