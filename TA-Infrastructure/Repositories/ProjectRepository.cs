@@ -80,16 +80,31 @@ namespace TA_Infrastructure.Repositories
 
         public async Task<List<Project>> GetAllAsync(int companyId, string userId, CancellationToken ct)
         {
-            return await _context.Projects
-                .Where(p => !p.IsDeleted && p.CompanyId == companyId)
-                .Include(t => t.RepositoryConfigs)
-                .Include(t => t.UserProjects)
-                .ThenInclude(up => up.User)
-                .Include(t => t.ProjectIntegrations)
-                .Include(t => t.CreatedBy)
-                .Include(t => t.Tasks)
-                .OrderByDescending(p => p.ProjectId)
-                .ToListAsync(ct);
+            var projects = await _context.Projects
+             .Where(p => !p.IsDeleted && p.CompanyId == companyId)
+             .OrderByDescending(p => p.ProjectId)
+             .Select(p => new Project
+             {
+                 ProjectId = p.ProjectId,
+                 Name = p.Name,
+                 CompanyId = p.CompanyId,
+
+                 RepositoryConfigs = p.RepositoryConfigs,
+                 ProjectIntegrations = p.ProjectIntegrations,
+
+                 CreatedBy = p.CreatedBy,
+
+                 UserProjects = p.UserProjects
+                     .Where(up => !up.IsDeleted)
+                     .ToList(),
+
+                 Tasks = p.Tasks
+                     .Where(t => !t.IsDeleted)
+                     .ToList(),
+
+             })
+             .ToListAsync(ct);
+            return projects;
         }
         public async Task<List<Project>> GetProjectsForInsights(int companyId, int? teamId, CancellationToken ct)
         {

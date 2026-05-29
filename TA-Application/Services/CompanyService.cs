@@ -135,17 +135,30 @@ namespace TA_Application.Services
             }
         }
 
-        public async Task<List<UserDTO>> GetTeamOfCompany(int companyId, CancellationToken ct)
+        public async Task<List<UserDTO>> GetTeamOfCompany(int companyId, string role, CancellationToken ct)
         {
-            if (companyId == 0) throw new ArgumentException(nameof(companyId));
+            if (companyId == 0)
+                throw new ArgumentException(nameof(companyId));
+
             try
             {
                 var result = await _companyService.GetTeamOfCompany(companyId, ct);
+
+                if (string.Equals(role, "Owner", StringComparison.OrdinalIgnoreCase))
+                {
+                    result = result
+                        .Where(x => !string.Equals(
+                            x.RoleName,
+                            "Owner",
+                            StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                }
+
                 return result.Select(user => new UserDTO
                 {
                     Id = user.User.Id,
                     FullName = user.User.FullName,
-                    UserName = user.User.UserName,   
+                    UserName = user.User.UserName,
                     PhoneNumber = user.User.PhoneNumber,
                     Role = user.RoleName,
                     Email = user.User.Email

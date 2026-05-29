@@ -13,7 +13,7 @@ namespace TA_Application.Interfaces.Services
         Task<CompanyConfigDTO> SaveCompanyConfig(CompanyConfigDTO companyConfigDTO, CancellationToken ct);
         Task<CompanyDTO> GetCompanyById(int id, CancellationToken ct);
         Task<List<CompanyConfigDTO>> GetCompanyConfig(int companyId, CancellationToken ct);
-        Task<List<UserDTO>>GetTeamOfCompany(int companyId, CancellationToken ct);
+        Task<List<UserDTO>>GetTeamOfCompany(int companyId, string role, CancellationToken ct);
         Task<List<InvitationsDTO>>GetInvitations(int companyId, CancellationToken ct);
         string GenerateSecureCode(int length = 8);
         Task<InvitationsDTO> GenerateCodeAsync(int companyId, DateTime expiryDate, CompanyRole role, CancellationToken ct);

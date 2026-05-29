@@ -53,7 +53,10 @@ namespace TA_API.Controllers
             var companyIdClaim = User.FindFirstValue("companyId");
             if (string.IsNullOrEmpty(companyIdClaim)) return Unauthorized();
             var companyId = int.Parse(companyIdClaim);
-            var result = await _companyService.GetTeamOfCompany(companyId, ct);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            if (string.IsNullOrWhiteSpace(role))
+                return Unauthorized("Role claim missing");
+            var result = await _companyService.GetTeamOfCompany(companyId, role, ct);
             return Ok(result);
         }
         [Authorize(Roles = "Owner")]

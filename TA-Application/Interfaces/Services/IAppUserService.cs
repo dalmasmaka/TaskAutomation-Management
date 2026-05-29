@@ -12,7 +12,7 @@ namespace TA_Application.Interfaces.Services
         Task<ResponseDTO> RegisterUserAsync(RegisterDTO userDTO, CancellationToken ct);
         Task<ResponseDTO> LoginUserAsync(string email, string password, CancellationToken ct);
         Task<ResponseDTO> DeleteUserAsync(string id, CancellationToken ct);
-        Task<ApplicationUser> UpdateUserAsync(UserDTO userDTO, CancellationToken ct);
+        Task<UserDTO> UpdateUserAsync(UserDTO userDTO, CancellationToken ct);
         Task<ResponseDTO> ChangePasswordAsync(ChangePasswordDTO changePasswordDTO, CancellationToken ct);
         Task<UserDTO> GetCurrentUser(string userId, CancellationToken ct);
         Task<UserGitHubDTO>GetUserGitHubInfo(string userId, CancellationToken ct);

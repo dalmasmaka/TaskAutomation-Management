@@ -72,6 +72,7 @@ namespace TA_Application.Services
                     FullName = userDTO.FullName,
                     Email = userDTO.Email,
                     UserName = userDTO.UserName,
+                    PhoneNumber = userDTO.PhoneNumber,
                     PasswordHash = _hasher.Hash(userDTO.Password),
                 };
                 // Invitation logic
@@ -117,15 +118,20 @@ namespace TA_Application.Services
                     return new ResponseDTO
                     {
                         Success = false,
-                        Message = "User created, but role assignment failed."
+                        Message = string.Join(", ",
+                            roleResult.Errors.Select(e => e.Description))
                     };
                 }
 
-                if (userDTO.Role == "owner")
+                if (string.Equals(userDTO.Role, "Owner", StringComparison.OrdinalIgnoreCase))
                 {
-                    var workspaceResult = await _companyService.AddWorkspace(userDTO.WorkspaceName!, user.Id, ct);
+                    var workspaceResult = await _companyService.AddWorkspace(
+                        userDTO.WorkspaceName!,
+                        user.Id,
+                        ct);
 
                     user.CompanyId = workspaceResult.Id;
+
                     await _repo.UpdateUser(user, ct);
                 }
 
@@ -198,14 +204,13 @@ namespace TA_Application.Services
                 return new ResponseDTO { Success = false, Message = "An unexpected error occurred." };
             }
         }
-        public async Task<ApplicationUser> UpdateUserAsync(UserDTO userDTO, CancellationToken ct)
+        public async Task<UserDTO> UpdateUserAsync(UserDTO userDTO, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(userDTO);
 
             try
             {
                 var existingUser = await _repo.GetUserById(userDTO.Id!, ct) ?? throw new KeyNotFoundException("User not found");
-
                 if (!string.IsNullOrWhiteSpace(userDTO.FullName))
                     existingUser.FullName = userDTO.FullName;
 
@@ -218,9 +223,22 @@ namespace TA_Application.Services
                 if (!string.IsNullOrWhiteSpace(userDTO.Password))
                     existingUser.PasswordHash = _hasher.Hash(userDTO.Password);
 
+                if (!string.IsNullOrEmpty(userDTO.PhoneNumber))
+                    existingUser.PhoneNumber = userDTO.PhoneNumber;
+
                 await _repo.UpdateUser(existingUser, ct);
 
-                return existingUser;
+                var roles = await _userManager.GetRolesAsync(existingUser);
+                var role = roles.FirstOrDefault();
+
+                return new UserDTO
+                {
+                    Id = existingUser.Id,
+                    Email = existingUser.Email ?? string.Empty,
+                    FullName = existingUser.FullName ?? string.Empty,
+                    PhoneNumber = existingUser.PhoneNumber ?? string.Empty,
+                    Role = role
+                };
             }
             catch (Exception ex)
             {

@@ -90,6 +90,10 @@ namespace TA_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(userId))
                 return Unauthorized("UserId claim missing");
+            var companyIdClaim = User.FindFirstValue("companyId");
+            if (!int.TryParse(companyIdClaim, out var companyId))
+                return BadRequest("Invalid companyId claim");
+            dto.CompanyId = companyId;
             dto.ActionByUserId = userId;
             var result = await _teamService.SaveTeamAsync(dto, ct);
             return Ok(result);

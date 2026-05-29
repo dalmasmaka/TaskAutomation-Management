@@ -128,7 +128,7 @@ namespace TA_Application.Services
                         RepoName = config?.RepoName,
                         RepoOwner = config?.RepoOwner,
                         DefaultBranch = config?.DefaultBranch,
-                        AccessToken = config?.AccessToken
+                        AccessToken = config?.AccessToken,
                     };
                 }).ToList();
 

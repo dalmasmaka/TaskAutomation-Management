@@ -17,6 +17,7 @@
         public string? CreatedAt { get; set; }
         public bool IsAssigned { get; set; }
         public bool HasConfig { get; set; }
+        public List<TeamDTO> Teams { get; set; } = new();
     }
     public class CreateProjectDTO
     {
